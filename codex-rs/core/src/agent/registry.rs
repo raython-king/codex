@@ -260,6 +260,11 @@ impl AgentRegistry {
         self.agents.keys().cloned().collect()
     }
 
+    /// Returns all registered agent IDs (alias for agent_ids).
+    pub fn list_agents(&self) -> Vec<AgentId> {
+        self.agent_ids()
+    }
+
     /// Returns the number of registered agents.
     pub fn count(&self) -> usize {
         self.agents.len()

@@ -25,7 +25,7 @@ pub enum MessageType {
 }
 
 /// A message sent from one agent to another.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct AgentMessage {
     /// Unique identifier for this message.
@@ -116,7 +116,7 @@ impl Default for MessagePriority {
 }
 
 /// A message with priority and routing metadata.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct QueuedMessage {
     /// The actual message.

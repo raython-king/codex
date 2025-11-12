@@ -1467,6 +1467,9 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
             Op::UnregisterAgent { agent_id } => {
                 handlers::unregister_agent(&sess, sub.id.clone(), agent_id).await;
             }
+            Op::SendToAgent { message } => {
+                handlers::send_agent_message(&sess, message).await;
+            }
             _ => {} // Ignore unknown ops; enum is non_exhaustive to allow extensions.
         }
     }
@@ -1494,6 +1497,8 @@ mod handlers {
     use codex_protocol::protocol::ErrorEvent;
     use codex_protocol::protocol::Event;
     use codex_protocol::protocol::EventMsg;
+    use codex_protocol::protocol::MessageSentEvent;
+    use codex_protocol::QueuedMessage;
     use codex_protocol::protocol::ListCustomPromptsResponseEvent;
     use codex_protocol::protocol::Op;
     use codex_protocol::protocol::ReviewDecision;
@@ -1863,6 +1868,43 @@ mod handlers {
                     }),
                 };
                 sess.send_event_raw(event).await;
+            }
+        }
+    }
+
+    pub async fn send_agent_message(sess: &Arc<Session>, message: QueuedMessage) {
+        let message_id = message.message.id.clone();
+        let from = message.message.from.clone();
+        let to = message.message.to.clone();
+        let message_type = message.message.message_type;
+        let priority = message.priority;
+
+        match sess.send_agent_message(message).await {
+            Ok(()) => {
+                // Emit MessageSent event
+                let event = EventMsg::MessageSent(MessageSentEvent {
+                    message_id,
+                    from,
+                    to,
+                    message_type,
+                    priority,
+                });
+
+                if let Err(e) = sess.tx_event.send(Event { id: String::new(), msg: event }).await {
+                    error!("Failed to send MessageSent event: {e}");
+                }
+            }
+            Err(e) => {
+                error!("Failed to send agent message: {e}");
+
+                // Emit error event
+                let event = EventMsg::Error(ErrorEvent {
+                    message: format!("Failed to send message: {e}"),
+                });
+
+                if let Err(e) = sess.tx_event.send(Event { id: String::new(), msg: event }).await {
+                    error!("Failed to send error event: {e}");
+                }
             }
         }
     }

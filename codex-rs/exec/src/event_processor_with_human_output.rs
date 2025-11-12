@@ -536,7 +536,9 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             | EventMsg::UndoCompleted(_)
             | EventMsg::UndoStarted(_)
             | EventMsg::AgentRegistered(_)
-            | EventMsg::AgentUnregistered(_) => {}
+            | EventMsg::AgentUnregistered(_)
+            | EventMsg::MessageSent(_)
+            | EventMsg::MessageReceived(_) => {}
         }
         CodexStatus::Running
     }

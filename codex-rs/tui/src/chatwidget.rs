@@ -1578,7 +1578,9 @@ impl ChatWidget {
             | EventMsg::ReasoningContentDelta(_)
             | EventMsg::ReasoningRawContentDelta(_)
             | EventMsg::AgentRegistered(_)
-            | EventMsg::AgentUnregistered(_) => {}
+            | EventMsg::AgentUnregistered(_)
+            | EventMsg::MessageSent(_)
+            | EventMsg::MessageReceived(_) => {}
         }
     }
 

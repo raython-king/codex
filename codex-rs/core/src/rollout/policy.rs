@@ -83,6 +83,8 @@ pub(crate) fn should_persist_event_msg(ev: &EventMsg) -> bool {
         | EventMsg::ReasoningContentDelta(_)
         | EventMsg::ReasoningRawContentDelta(_)
         | EventMsg::AgentRegistered(_)
-        | EventMsg::AgentUnregistered(_) => false,
+        | EventMsg::AgentUnregistered(_)
+        | EventMsg::MessageSent(_)
+        | EventMsg::MessageReceived(_) => false,
     }
 }

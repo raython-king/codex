@@ -13,6 +13,7 @@ use std::time::Duration;
 use crate::AgentConfig;
 use crate::AgentId;
 use crate::ConversationId;
+use crate::{MessagePriority, MessageType, QueuedMessage};
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use crate::custom_prompts::CustomPrompt;
@@ -235,6 +236,12 @@ pub enum Op {
     UnregisterAgent {
         /// ID of the agent to unregister.
         agent_id: AgentId,
+    },
+
+    /// Send a message from one agent to another.
+    SendToAgent {
+        /// The message to send.
+        message: QueuedMessage,
     },
 }
 
@@ -600,6 +607,12 @@ pub enum EventMsg {
 
     /// Notification that an agent was unregistered.
     AgentUnregistered(AgentUnregisteredEvent),
+
+    /// A message was sent from one agent to another.
+    MessageSent(MessageSentEvent),
+
+    /// A message was received by an agent.
+    MessageReceived(MessageReceivedEvent),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
@@ -712,6 +725,34 @@ pub struct AgentRegisteredEvent {
 pub struct AgentUnregisteredEvent {
     /// ID of the unregistered agent.
     pub agent_id: AgentId,
+}
+
+/// Event emitted when a message is sent between agents.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
+pub struct MessageSentEvent {
+    /// ID of the message that was sent.
+    pub message_id: String,
+    /// Agent that sent the message.
+    pub from: AgentId,
+    /// Agent that will receive the message.
+    pub to: AgentId,
+    /// Type of message.
+    pub message_type: MessageType,
+    /// Message priority.
+    pub priority: MessagePriority,
+}
+
+/// Event emitted when an agent receives a message.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
+pub struct MessageReceivedEvent {
+    /// ID of the message that was received.
+    pub message_id: String,
+    /// Agent that sent the message.
+    pub from: AgentId,
+    /// Agent that received the message.
+    pub to: AgentId,
+    /// Type of message.
+    pub message_type: MessageType,
 }
 
 impl HasLegacyEvent for EventMsg {

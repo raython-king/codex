@@ -1,4 +1,6 @@
 pub mod account;
+mod agent_id;
+pub use agent_id::AgentId;
 mod conversation_id;
 pub use conversation_id::ConversationId;
 pub mod approvals;

@@ -1,6 +1,6 @@
 //! Agent configuration types.
 
-use super::AgentId;
+use codex_protocol::AgentId;
 use serde::{Deserialize, Serialize};
 
 /// Role of an agent in a multi-agent system.

@@ -5,12 +5,12 @@
 //! and state, while sharing session-level resources like conversation history
 //! and authentication.
 
-pub mod id;
 pub mod config;
 pub mod state;
 pub mod registry;
 
-pub use id::AgentId;
+// Re-export AgentId from protocol
+pub use codex_protocol::AgentId;
 pub use config::{AgentConfig, AgentRole};
 pub use state::AgentState;
 pub use registry::AgentRegistry;

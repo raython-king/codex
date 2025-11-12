@@ -1,6 +1,8 @@
-//! Agent identifier types.
+//! Agent identifier types for multi-agent sessions.
 
 use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
+use ts_rs::TS;
 use std::fmt;
 
 /// Unique identifier for an agent within a session.
@@ -8,18 +10,13 @@ use std::fmt;
 /// Each agent in a multi-agent session has a unique ID that is used to route
 /// operations and track events. The special ID "default" is used for backward
 /// compatibility with single-agent sessions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(transparent)]
-pub struct AgentId(String);
+#[ts(export)]
+pub struct AgentId(pub String);
 
 impl AgentId {
     /// Creates a new AgentId from a string.
-    ///
-    /// # Example
-    /// ```
-    /// use codex_core::agent::AgentId;
-    /// let id = AgentId::new("planner");
-    /// ```
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
@@ -40,6 +37,12 @@ impl AgentId {
     /// Checks if this is the default agent.
     pub fn is_default(&self) -> bool {
         self.0 == "default"
+    }
+}
+
+impl Default for AgentId {
+    fn default() -> Self {
+        Self::default_agent()
     }
 }
 
@@ -82,6 +85,12 @@ mod tests {
         let default_id = AgentId::default_agent();
         assert_eq!(default_id.as_str(), "default");
         assert!(default_id.is_default());
+    }
+
+    #[test]
+    fn test_agent_id_default_impl() {
+        let id = AgentId::default();
+        assert_eq!(id, AgentId::default_agent());
     }
 
     #[test]

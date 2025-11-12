@@ -270,6 +270,11 @@ impl AgentRegistry {
         self.agents.contains_key(id)
     }
 
+    /// Checks if an agent with the given ID exists (alias for contains).
+    pub fn has_agent(&self, agent_id: &AgentId) -> bool {
+        self.contains(agent_id)
+    }
+
     /// Gets an agent or the default agent if the ID is None.
     ///
     /// This is the primary method for resolving agent IDs in a backward-compatible way:

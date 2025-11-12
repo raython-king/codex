@@ -3,6 +3,8 @@ mod agent_id;
 pub use agent_id::AgentId;
 mod agent_config;
 pub use agent_config::AgentConfig;
+mod agent_message;
+pub use agent_message::{AgentMessage, MessagePriority, MessageType, QueuedMessage};
 mod conversation_id;
 pub use conversation_id::ConversationId;
 pub mod approvals;

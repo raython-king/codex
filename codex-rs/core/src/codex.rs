@@ -6,6 +6,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::RwLock;
 
 use crate::agent::{AgentRegistry, AgentId, AgentConfig, AgentState};
+use crate::message_queue::MessageQueue;
 use crate::AuthManager;
 use crate::client_common::REVIEW_PROMPT;
 use crate::compact;
@@ -258,6 +259,7 @@ pub(crate) struct Session {
     pub(crate) services: SessionServices,
     next_internal_sub_id: AtomicU64,
     agent_registry: Arc<RwLock<AgentRegistry>>,
+    agent_message_queue: Arc<Mutex<MessageQueue>>,
 }
 
 /// The context needed for a single turn of the conversation.
@@ -614,6 +616,7 @@ impl Session {
             services,
             next_internal_sub_id: AtomicU64::new(0),
             agent_registry: Arc::new(RwLock::new(AgentRegistry::new())),
+            agent_message_queue: Arc::new(Mutex::new(MessageQueue::new())),
         });
 
         // Dispatch the SessionConfiguredEvent first and then report any errors.
@@ -721,7 +724,19 @@ impl Session {
     pub(crate) fn unregister_agent(&self, agent_id: &AgentId) -> Result<(), String> {
         let mut registry = self.agent_registry.write().unwrap();
         registry.unregister(agent_id)
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+
+        // Clear agent's messages
+        tokio::spawn({
+            let queue = self.agent_message_queue.clone();
+            let agent_id = agent_id.clone();
+            async move {
+                let mut queue = queue.lock().await;
+                queue.clear_agent_messages(&agent_id);
+            }
+        });
+
+        Ok(())
     }
 
     /// Lists all registered agent IDs.
@@ -729,6 +744,54 @@ impl Session {
     pub(crate) fn list_agents(&self) -> Vec<AgentId> {
         let registry = self.agent_registry.read().unwrap();
         registry.agent_ids()
+    }
+
+    /// Sends a message from one agent to another.
+    #[allow(dead_code)]
+    pub(crate) async fn send_agent_message(
+        &self,
+        message: codex_protocol::QueuedMessage,
+    ) -> Result<(), String> {
+        // Verify sender agent exists
+        {
+            let registry = self.agent_registry.read().unwrap();
+            if !registry.has_agent(&message.message.from) {
+                return Err(format!("Sender agent '{}' not found", message.message.from.as_str()));
+            }
+            if !registry.has_agent(&message.message.to) {
+                return Err(format!("Target agent '{}' not found", message.message.to.as_str()));
+            }
+        }
+
+        // Enqueue message
+        let mut queue = self.agent_message_queue.lock().await;
+        queue.enqueue(message);
+
+        Ok(())
+    }
+
+    /// Receives the next message for the specified agent.
+    #[allow(dead_code)]
+    pub(crate) async fn receive_agent_message(
+        &self,
+        agent_id: &AgentId,
+    ) -> Option<codex_protocol::QueuedMessage> {
+        let mut queue = self.agent_message_queue.lock().await;
+        queue.dequeue(agent_id)
+    }
+
+    /// Returns the number of pending messages for an agent.
+    #[allow(dead_code)]
+    pub(crate) async fn pending_message_count(&self, agent_id: &AgentId) -> usize {
+        let queue = self.agent_message_queue.lock().await;
+        queue.pending_count(agent_id)
+    }
+
+    /// Checks if an agent has pending messages.
+    #[allow(dead_code)]
+    pub(crate) async fn has_pending_messages(&self, agent_id: &AgentId) -> bool {
+        let queue = self.agent_message_queue.lock().await;
+        queue.has_messages(agent_id)
     }
 
     /// Checks if the current agent (or default) can use the specified tool.
@@ -2759,6 +2822,7 @@ mod tests {
             services,
             next_internal_sub_id: AtomicU64::new(0),
             agent_registry: Arc::new(RwLock::new(AgentRegistry::new())),
+            agent_message_queue: Arc::new(Mutex::new(MessageQueue::new())),
         };
 
         (session, turn_context)
@@ -2836,6 +2900,7 @@ mod tests {
             services,
             next_internal_sub_id: AtomicU64::new(0),
             agent_registry: Arc::new(RwLock::new(AgentRegistry::new())),
+            agent_message_queue: Arc::new(Mutex::new(MessageQueue::new())),
         });
 
         (session, turn_context, rx_event)

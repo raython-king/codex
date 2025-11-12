@@ -8,6 +8,7 @@
 mod apply_patch;
 pub mod agent;
 pub mod auth;
+pub mod message_queue;
 pub mod bash;
 mod chat_completions;
 mod client;

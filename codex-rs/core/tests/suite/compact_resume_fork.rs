@@ -821,7 +821,9 @@ async fn user_turn(conversation: &Arc<CodexConversation>, text: &str) {
     conversation
         .submit(Op::UserInput {
             items: vec![UserInput::Text { text: text.into() }],
-        })
+
+            agent_id: None,
+})
         .await
         .expect("submit user turn");
     wait_for_event(conversation, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;

@@ -118,7 +118,9 @@ async fn codex_mini_latest_tools() {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -128,7 +130,9 @@ async fn codex_mini_latest_tools() {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -201,7 +205,9 @@ async fn prompt_tools_are_consistent_across_requests() {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -211,7 +217,9 @@ async fn prompt_tools_are_consistent_across_requests() {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -321,7 +329,9 @@ async fn prefixes_context_and_instructions_once_and_consistently_across_requests
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -331,7 +341,9 @@ async fn prefixes_context_and_instructions_once_and_consistently_across_requests
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -443,7 +455,9 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -472,7 +486,9 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -571,7 +587,9 @@ async fn per_turn_overrides_keep_cached_prefix_and_key_constant() {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -596,6 +614,7 @@ async fn per_turn_overrides_keep_cached_prefix_and_key_constant() {
             effort: Some(ReasoningEffort::High),
             summary: ReasoningSummary::Detailed,
             final_output_json_schema: None,
+        agent_id: None,
         })
         .await
         .unwrap();
@@ -707,6 +726,7 @@ async fn send_user_turn_with_no_changes_does_not_send_environment_context() {
             effort: default_effort,
             summary: default_summary,
             final_output_json_schema: None,
+        agent_id: None,
         })
         .await
         .unwrap();
@@ -724,6 +744,7 @@ async fn send_user_turn_with_no_changes_does_not_send_environment_context() {
             effort: default_effort,
             summary: default_summary,
             final_output_json_schema: None,
+        agent_id: None,
         })
         .await
         .unwrap();
@@ -823,6 +844,7 @@ async fn send_user_turn_with_changes_sends_environment_context() {
             effort: default_effort,
             summary: default_summary,
             final_output_json_schema: None,
+        agent_id: None,
         })
         .await
         .unwrap();
@@ -840,6 +862,7 @@ async fn send_user_turn_with_changes_sends_environment_context() {
             effort: Some(ReasoningEffort::High),
             summary: ReasoningSummary::Detailed,
             final_output_json_schema: None,
+        agent_id: None,
         })
         .await
         .unwrap();

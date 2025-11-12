@@ -625,7 +625,9 @@ async fn review_history_does_not_leak_into_parent_session() {
             items: vec![UserInput::Text {
                 text: followup.clone(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;

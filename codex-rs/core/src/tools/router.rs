@@ -144,6 +144,17 @@ impl ToolRouter {
         let payload_outputs_custom = matches!(payload, ToolPayload::Custom { .. });
         let failure_call_id = call_id.clone();
 
+        // CHECK PERMISSION: Verify agent can use this tool
+        if !session.can_agent_use_tool(turn.agent_id.as_ref(), &tool_name) {
+            let agent_name = turn.agent_id.as_ref()
+                .map(|id| id.as_str())
+                .unwrap_or("default");
+            let error = FunctionCallError::RespondToModel(
+                format!("Agent '{}' is not allowed to use tool '{}'", agent_name, tool_name)
+            );
+            return Ok(Self::failure_response(failure_call_id, payload_outputs_custom, error));
+        }
+
         let invocation = ToolInvocation {
             session,
             turn,

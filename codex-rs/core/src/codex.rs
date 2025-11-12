@@ -3,7 +3,9 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use std::sync::RwLock;
 
+use crate::agent::{AgentRegistry, AgentId, AgentConfig, AgentState};
 use crate::AuthManager;
 use crate::client_common::REVIEW_PROMPT;
 use crate::compact;
@@ -255,6 +257,7 @@ pub(crate) struct Session {
     pub(crate) active_turn: Mutex<Option<ActiveTurn>>,
     pub(crate) services: SessionServices,
     next_internal_sub_id: AtomicU64,
+    agent_registry: Arc<RwLock<AgentRegistry>>,
 }
 
 /// The context needed for a single turn of the conversation.
@@ -277,6 +280,8 @@ pub(crate) struct TurnContext {
     pub(crate) final_output_json_schema: Option<Value>,
     pub(crate) codex_linux_sandbox_exe: Option<PathBuf>,
     pub(crate) tool_call_gate: Arc<ReadinessFlag>,
+    /// Agent handling this turn (None = default agent)
+    pub(crate) agent_id: Option<AgentId>,
 }
 
 impl TurnContext {
@@ -433,6 +438,7 @@ impl Session {
             final_output_json_schema: None,
             codex_linux_sandbox_exe: config.codex_linux_sandbox_exe.clone(),
             tool_call_gate: Arc::new(ReadinessFlag::new()),
+            agent_id: None,
         }
     }
 
@@ -607,6 +613,7 @@ impl Session {
             active_turn: Mutex::new(None),
             services,
             next_internal_sub_id: AtomicU64::new(0),
+            agent_registry: Arc::new(RwLock::new(AgentRegistry::new())),
         });
 
         // Dispatch the SessionConfiguredEvent first and then report any errors.
@@ -697,15 +704,68 @@ impl Session {
         state.session_configuration = state.session_configuration.apply(&updates);
     }
 
+    /// Gets an agent by ID, or the default agent if None.
+    pub(crate) fn get_agent(&self, agent_id: Option<&AgentId>) -> Arc<AgentState> {
+        let registry = self.agent_registry.read().unwrap();
+        registry.get_or_default(agent_id)
+    }
+
+    /// Registers a new agent in this session.
+    pub(crate) fn register_agent(&self, config: AgentConfig) -> Result<AgentId, String> {
+        let mut registry = self.agent_registry.write().unwrap();
+        registry.register(config)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Unregisters an agent from this session.
+    pub(crate) fn unregister_agent(&self, agent_id: &AgentId) -> Result<(), String> {
+        let mut registry = self.agent_registry.write().unwrap();
+        registry.unregister(agent_id)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Lists all registered agent IDs.
+    #[allow(dead_code)]
+    pub(crate) fn list_agents(&self) -> Vec<AgentId> {
+        let registry = self.agent_registry.read().unwrap();
+        registry.agent_ids()
+    }
+
+    /// Checks if the current agent (or default) can use the specified tool.
+    pub(crate) fn can_agent_use_tool(
+        &self,
+        agent_id: Option<&AgentId>,
+        tool_name: &str,
+    ) -> bool {
+        let agent = self.get_agent(agent_id);
+
+        // If allowed_tools is None, all tools are allowed
+        match &agent.config.allowed_tools {
+            None => true,
+            Some(allowed) => allowed.iter().any(|t| t == tool_name),
+        }
+    }
+
+    /// Returns the list of tools available to an agent.
+    /// Returns None if all tools are allowed.
+    pub(crate) fn get_agent_tools(
+        &self,
+        agent_id: Option<&AgentId>,
+    ) -> Option<Vec<String>> {
+        let agent = self.get_agent(agent_id);
+        agent.config.allowed_tools.clone()
+    }
+
     pub(crate) async fn new_turn(&self, updates: SessionSettingsUpdate) -> Arc<TurnContext> {
         let sub_id = self.next_internal_sub_id();
-        self.new_turn_with_sub_id(sub_id, updates).await
+        self.new_turn_with_sub_id(sub_id, updates, None).await
     }
 
     pub(crate) async fn new_turn_with_sub_id(
         &self,
         sub_id: String,
         updates: SessionSettingsUpdate,
+        agent_id: Option<AgentId>,
     ) -> Arc<TurnContext> {
         let session_configuration = {
             let mut state = self.state.lock().await;
@@ -725,6 +785,7 @@ impl Session {
         if let Some(final_schema) = updates.final_output_json_schema {
             turn_context.final_output_json_schema = final_schema;
         }
+        turn_context.agent_id = agent_id;
         Arc::new(turn_context)
     }
 
@@ -781,7 +842,7 @@ impl Session {
                 thread_id: self.conversation_id,
                 turn_id: turn_context.sub_id.clone(),
                 item: item.clone(),
-                agent_id: None,
+                agent_id: turn_context.agent_id.clone(),
             }),
         )
         .await;
@@ -794,7 +855,7 @@ impl Session {
                 thread_id: self.conversation_id,
                 turn_id: turn_context.sub_id.clone(),
                 item,
-                agent_id: None,
+                agent_id: turn_context.agent_id.clone(),
             }),
         )
         .await;
@@ -867,7 +928,7 @@ impl Session {
             reason,
             risk,
             parsed_cmd,
-            agent_id: None,
+            agent_id: turn_context.agent_id.clone(),
         });
         self.send_event(turn_context, event).await;
         rx_approve.await.unwrap_or_default()
@@ -904,7 +965,7 @@ impl Session {
             changes,
             reason,
             grant_root,
-            agent_id: None,
+            agent_id: turn_context.agent_id.clone(),
         });
         self.send_event(turn_context, event).await;
         rx_approve
@@ -1266,8 +1327,8 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
     while let Ok(sub) = rx_sub.recv().await {
         debug!(?sub, "Submission");
         match sub.op.clone() {
-            Op::Interrupt { .. } => {
-                handlers::interrupt(&sess).await;
+            Op::Interrupt { agent_id } => {
+                handlers::interrupt(&sess, agent_id).await;
             }
             Op::OverrideTurnContext {
                 cwd,
@@ -1295,11 +1356,11 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
                 handlers::user_input_or_turn(&sess, sub.id.clone(), sub.op, &mut previous_context)
                     .await;
             }
-            Op::ExecApproval { id, decision, .. } => {
-                handlers::exec_approval(&sess, id, decision).await;
+            Op::ExecApproval { id, decision, agent_id } => {
+                handlers::exec_approval(&sess, id, decision, agent_id).await;
             }
-            Op::PatchApproval { id, decision, .. } => {
-                handlers::patch_approval(&sess, id, decision).await;
+            Op::PatchApproval { id, decision, agent_id } => {
+                handlers::patch_approval(&sess, id, decision, agent_id).await;
             }
             Op::AddToHistory { text } => {
                 handlers::add_to_history(&sess, &config, text).await;
@@ -1337,6 +1398,12 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
             Op::Review { review_request } => {
                 handlers::review(&sess, &config, sub.id.clone(), review_request).await;
             }
+            Op::RegisterAgent { config } => {
+                handlers::register_agent(&sess, sub.id.clone(), config).await;
+            }
+            Op::UnregisterAgent { agent_id } => {
+                handlers::unregister_agent(&sess, sub.id.clone(), agent_id).await;
+            }
             _ => {} // Ignore unknown ops; enum is non_exhaustive to allow extensions.
         }
     }
@@ -1345,6 +1412,7 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
 
 /// Operation handlers
 mod handlers {
+    use crate::agent::{AgentConfig, AgentRole};
     use crate::codex::Session;
     use crate::codex::SessionSettingsUpdate;
     use crate::codex::TurnContext;
@@ -1352,11 +1420,14 @@ mod handlers {
     use crate::codex::spawn_review_thread;
     use crate::config::Config;
     use crate::mcp::auth::compute_auth_statuses;
+    use tracing::error;
     use crate::tasks::CompactTask;
     use crate::tasks::RegularTask;
     use crate::tasks::UndoTask;
     use crate::tasks::UserShellCommandTask;
     use codex_protocol::custom_prompts::CustomPrompt;
+    use codex_protocol::protocol::AgentRegisteredEvent;
+    use codex_protocol::protocol::AgentUnregisteredEvent;
     use codex_protocol::protocol::ErrorEvent;
     use codex_protocol::protocol::Event;
     use codex_protocol::protocol::EventMsg;
@@ -1370,8 +1441,15 @@ mod handlers {
     use tracing::info;
     use tracing::warn;
 
-    pub async fn interrupt(sess: &Arc<Session>) {
-        sess.interrupt_task().await;
+    pub async fn interrupt(sess: &Arc<Session>, agent_id: Option<codex_protocol::AgentId>) {
+        if let Some(_agent_id) = agent_id {
+            // TODO: Implement agent-specific task interruption
+            // For now, interrupt all tasks regardless of agent_id
+            sess.interrupt_task().await;
+        } else {
+            // Interrupt all tasks (existing behavior)
+            sess.interrupt_task().await;
+        }
     }
 
     pub async fn override_turn_context(sess: &Session, updates: SessionSettingsUpdate) {
@@ -1384,7 +1462,7 @@ mod handlers {
         op: Op,
         previous_context: &mut Option<Arc<TurnContext>>,
     ) {
-        let (items, updates) = match op {
+        let (items, updates, agent_id) = match op {
             Op::UserTurn {
                 cwd,
                 approval_policy,
@@ -1394,6 +1472,7 @@ mod handlers {
                 summary,
                 final_output_json_schema,
                 items,
+                agent_id,
                 ..
             } => (
                 items,
@@ -1406,12 +1485,13 @@ mod handlers {
                     reasoning_summary: Some(summary),
                     final_output_json_schema: Some(final_output_json_schema),
                 },
+                agent_id,
             ),
-            Op::UserInput { items, .. } => (items, SessionSettingsUpdate::default()),
+            Op::UserInput { items, agent_id } => (items, SessionSettingsUpdate::default(), agent_id),
             _ => unreachable!(),
         };
 
-        let current_context = sess.new_turn_with_sub_id(sub_id, updates).await;
+        let current_context = sess.new_turn_with_sub_id(sub_id, updates, agent_id).await;
         current_context
             .client
             .get_otel_event_manager()
@@ -1439,7 +1519,7 @@ mod handlers {
         previous_context: &mut Option<Arc<TurnContext>>,
     ) {
         let turn_context = sess
-            .new_turn_with_sub_id(sub_id, SessionSettingsUpdate::default())
+            .new_turn_with_sub_id(sub_id, SessionSettingsUpdate::default(), None)
             .await;
         sess.spawn_task(
             Arc::clone(&turn_context),
@@ -1450,7 +1530,13 @@ mod handlers {
         *previous_context = Some(turn_context);
     }
 
-    pub async fn exec_approval(sess: &Arc<Session>, id: String, decision: ReviewDecision) {
+    pub async fn exec_approval(
+        sess: &Arc<Session>,
+        id: String,
+        decision: ReviewDecision,
+        _agent_id: Option<codex_protocol::AgentId>,
+    ) {
+        // TODO: Use agent_id for agent-specific approval routing when multi-agent support is fully implemented
         match decision {
             ReviewDecision::Abort => {
                 sess.interrupt_task().await;
@@ -1459,7 +1545,13 @@ mod handlers {
         }
     }
 
-    pub async fn patch_approval(sess: &Arc<Session>, id: String, decision: ReviewDecision) {
+    pub async fn patch_approval(
+        sess: &Arc<Session>,
+        id: String,
+        decision: ReviewDecision,
+        _agent_id: Option<codex_protocol::AgentId>,
+    ) {
+        // TODO: Use agent_id for agent-specific approval routing when multi-agent support is fully implemented
         match decision {
             ReviewDecision::Abort => {
                 sess.interrupt_task().await;
@@ -1563,7 +1655,7 @@ mod handlers {
 
     pub async fn undo(sess: &Arc<Session>, sub_id: String) {
         let turn_context = sess
-            .new_turn_with_sub_id(sub_id, SessionSettingsUpdate::default())
+            .new_turn_with_sub_id(sub_id, SessionSettingsUpdate::default(), None)
             .await;
         sess.spawn_task(turn_context, Vec::new(), UndoTask::new())
             .await;
@@ -1571,7 +1663,7 @@ mod handlers {
 
     pub async fn compact(sess: &Arc<Session>, sub_id: String) {
         let turn_context = sess
-            .new_turn_with_sub_id(sub_id, SessionSettingsUpdate::default())
+            .new_turn_with_sub_id(sub_id, SessionSettingsUpdate::default(), None)
             .await;
         // Attempt to inject input into current task
         if let Err(items) = sess
@@ -1623,7 +1715,7 @@ mod handlers {
         review_request: ReviewRequest,
     ) {
         let turn_context = sess
-            .new_turn_with_sub_id(sub_id.clone(), SessionSettingsUpdate::default())
+            .new_turn_with_sub_id(sub_id.clone(), SessionSettingsUpdate::default(), None)
             .await;
         spawn_review_thread(
             Arc::clone(sess),
@@ -1633,6 +1725,83 @@ mod handlers {
             review_request,
         )
         .await;
+    }
+
+    pub async fn register_agent(sess: &Arc<Session>, sub_id: String, config: codex_protocol::AgentConfig) {
+        // Convert protocol-level AgentConfig to core-level AgentConfig
+        let core_config = AgentConfig::new(config.id.clone(), config.name.clone())
+            .with_role(match config.role.as_str() {
+                "planner" => AgentRole::Planner,
+                "coder" => AgentRole::Coder,
+                "reviewer" => AgentRole::Reviewer,
+                "tester" => AgentRole::Tester,
+                "documenter" => AgentRole::Documenter,
+                "debugger" => AgentRole::Debugger,
+                "executor" => AgentRole::Generic, // Map "executor" to Generic for now
+                _ => AgentRole::Generic,
+            })
+            .with_max_concurrent_tasks(config.max_concurrent_tasks);
+
+        let core_config = if let Some(prompt) = config.system_prompt {
+            core_config.with_system_prompt(prompt)
+        } else {
+            core_config
+        };
+
+        let core_config = if let Some(tools) = config.allowed_tools {
+            core_config.with_allowed_tools(tools)
+        } else {
+            core_config
+        };
+
+        match sess.register_agent(core_config) {
+            Ok(agent_id) => {
+                // Emit AgentRegistered event
+                let event = Event {
+                    id: sub_id,
+                    msg: EventMsg::AgentRegistered(AgentRegisteredEvent {
+                        agent_id: agent_id.clone(),
+                        name: config.name,
+                    }),
+                };
+                sess.send_event_raw(event).await;
+            }
+            Err(e) => {
+                error!("Failed to register agent: {e}");
+                let event = Event {
+                    id: sub_id,
+                    msg: EventMsg::Error(ErrorEvent {
+                        message: format!("Failed to register agent: {e}"),
+                    }),
+                };
+                sess.send_event_raw(event).await;
+            }
+        }
+    }
+
+    pub async fn unregister_agent(sess: &Arc<Session>, sub_id: String, agent_id: codex_protocol::AgentId) {
+        match sess.unregister_agent(&agent_id) {
+            Ok(()) => {
+                // Emit AgentUnregistered event
+                let event = Event {
+                    id: sub_id,
+                    msg: EventMsg::AgentUnregistered(AgentUnregisteredEvent {
+                        agent_id: agent_id.clone(),
+                    }),
+                };
+                sess.send_event_raw(event).await;
+            }
+            Err(e) => {
+                error!("Failed to unregister agent '{}': {e}", agent_id.as_str());
+                let event = Event {
+                    id: sub_id,
+                    msg: EventMsg::Error(ErrorEvent {
+                        message: format!("Failed to unregister agent '{}': {e}", agent_id.as_str()),
+                    }),
+                };
+                sess.send_event_raw(event).await;
+            }
+        }
     }
 }
 
@@ -1708,6 +1877,7 @@ async fn spawn_review_thread(
         final_output_json_schema: None,
         codex_linux_sandbox_exe: parent_turn_context.codex_linux_sandbox_exe.clone(),
         tool_call_gate: Arc::new(ReadinessFlag::new()),
+        agent_id: parent_turn_context.agent_id.clone(),
     };
 
     // Seed the child task with the review prompt as the initial user message.
@@ -1892,9 +2062,22 @@ async fn run_turn(
         .get_model_family()
         .supports_parallel_tool_calls;
     let parallel_tool_calls = model_supports_parallel;
+
+    // Filter tools based on agent permissions
+    let all_tools = router.specs();
+    let available_tools = match sess.get_agent_tools(turn_context.agent_id.as_ref()) {
+        None => all_tools, // No restrictions
+        Some(allowed) => {
+            all_tools
+                .into_iter()
+                .filter(|tool| allowed.contains(&tool.name().to_string()))
+                .collect()
+        }
+    };
+
     let prompt = Prompt {
         input,
-        tools: router.specs(),
+        tools: available_tools,
         parallel_tool_calls,
         base_instructions_override: turn_context.base_instructions.clone(),
         output_schema: turn_context.final_output_json_schema.clone(),
@@ -2575,6 +2758,7 @@ mod tests {
             active_turn: Mutex::new(None),
             services,
             next_internal_sub_id: AtomicU64::new(0),
+            agent_registry: Arc::new(RwLock::new(AgentRegistry::new())),
         };
 
         (session, turn_context)
@@ -2651,6 +2835,7 @@ mod tests {
             active_turn: Mutex::new(None),
             services,
             next_internal_sub_id: AtomicU64::new(0),
+            agent_registry: Arc::new(RwLock::new(AgentRegistry::new())),
         });
 
         (session, turn_context, rx_event)
@@ -3193,5 +3378,59 @@ mod tests {
             "MCP client for `slow` timed out after 10 seconds. Add or adjust `startup_timeout_sec` in your config.toml:\n[mcp_servers.slow]\nstartup_timeout_sec = XX",
             display
         );
+    }
+
+    #[test]
+    fn test_agent_can_use_tool_with_no_restrictions() {
+        let (session, _) = make_session_and_context();
+
+        // Default agent has no restrictions (allowed_tools = None)
+        assert!(session.can_agent_use_tool(None, "shell"));
+        assert!(session.can_agent_use_tool(None, "read_file"));
+        assert!(session.can_agent_use_tool(None, "any_tool"));
+    }
+
+    #[test]
+    fn test_agent_can_use_tool_with_specific_tools_allowed() {
+        let (session, _) = make_session_and_context();
+
+        // Register an agent with specific allowed tools
+        let config = crate::agent::AgentConfig::new("restricted", "Restricted Agent")
+            .with_allowed_tools(vec!["shell".to_string(), "read_file".to_string()]);
+
+        session.register_agent(config).unwrap();
+        let agent_id = AgentId::from("restricted");
+
+        // Agent can use allowed tools
+        assert!(session.can_agent_use_tool(Some(&agent_id), "shell"));
+        assert!(session.can_agent_use_tool(Some(&agent_id), "read_file"));
+
+        // Agent cannot use tools not in the allowed list
+        assert!(!session.can_agent_use_tool(Some(&agent_id), "write_file"));
+        assert!(!session.can_agent_use_tool(Some(&agent_id), "exec_command"));
+    }
+
+    #[test]
+    fn test_get_agent_tools_returns_none_for_unrestricted_agent() {
+        let (session, _) = make_session_and_context();
+
+        // Default agent has no restrictions
+        assert_eq!(session.get_agent_tools(None), None);
+    }
+
+    #[test]
+    fn test_get_agent_tools_returns_allowed_list_for_restricted_agent() {
+        let (session, _) = make_session_and_context();
+
+        // Register an agent with specific allowed tools
+        let allowed = vec!["shell".to_string(), "read_file".to_string()];
+        let config = crate::agent::AgentConfig::new("restricted", "Restricted Agent")
+            .with_allowed_tools(allowed.clone());
+
+        session.register_agent(config).unwrap();
+        let agent_id = AgentId::from("restricted");
+
+        // Should return the allowed tools list
+        assert_eq!(session.get_agent_tools(Some(&agent_id)), Some(allowed));
     }
 }

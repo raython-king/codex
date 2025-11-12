@@ -106,7 +106,7 @@ async fn user_shell_cmd_can_be_interrupted() {
 
     // Wait until it has started (ExecCommandBegin), then interrupt.
     let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecCommandBegin(_))).await;
-    codex.submit(Op::Interrupt).await.unwrap();
+    codex.submit(Op::Interrupt { agent_id: None }).await.unwrap();
 
     // Expect a TurnAborted(Interrupted) notification.
     let msg = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnAborted(_))).await;

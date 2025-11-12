@@ -71,7 +71,9 @@ async fn fork_conversation_twice_drops_to_first_message() {
                 items: vec![UserInput::Text {
                     text: text.to_string(),
                 }],
-            })
+
+                agent_id: None,
+})
             .await
             .unwrap();
         let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;

@@ -1,4 +1,68 @@
 //! Agent registry for managing multiple agents in a session.
+//!
+//! The [`AgentRegistry`] is the central component for managing agent lifecycles
+//! within a Codex session. It handles registration, lookup, and removal of agents,
+//! while ensuring the default agent is always available for backward compatibility.
+//!
+//! # Examples
+//!
+//! ## Basic Usage
+//!
+//! ```
+//! use codex_core::agent::{AgentRegistry, AgentConfig, AgentRole};
+//!
+//! // Create a new registry (includes default agent)
+//! let mut registry = AgentRegistry::new();
+//!
+//! // Register a specialized agent
+//! let planner = AgentConfig::new("planner", "Task Planner")
+//!     .with_role(AgentRole::Planner);
+//!
+//! let agent_id = registry.register(planner).unwrap();
+//!
+//! // Look up the agent
+//! let agent_state = registry.get(&agent_id).unwrap();
+//! println!("Agent: {}", agent_state.name());
+//! ```
+//!
+//! ## Managing Multiple Agents
+//!
+//! ```
+//! use codex_core::agent::{AgentRegistry, AgentConfig, AgentRole};
+//!
+//! let mut registry = AgentRegistry::new();
+//!
+//! // Register multiple specialized agents
+//! let agents = vec![
+//!     AgentConfig::new("planner", "Planner").with_role(AgentRole::Planner),
+//!     AgentConfig::new("coder", "Coder").with_role(AgentRole::Coder),
+//!     AgentConfig::new("reviewer", "Reviewer").with_role(AgentRole::Reviewer),
+//! ];
+//!
+//! for config in agents {
+//!     registry.register(config).expect("Failed to register agent");
+//! }
+//!
+//! // List all agents
+//! for agent_id in registry.agent_ids() {
+//!     println!("Registered agent: {}", agent_id.as_str());
+//! }
+//! ```
+//!
+//! ## Using Default Agent
+//!
+//! ```
+//! use codex_core::agent::{AgentRegistry, AgentId};
+//!
+//! let registry = AgentRegistry::new();
+//!
+//! // Get the default agent (always available)
+//! let default_agent = registry.default();
+//!
+//! // Or use get_or_default for None values
+//! let agent = registry.get_or_default(None);
+//! assert_eq!(agent.id(), registry.default_id());
+//! ```
 
 use super::{AgentConfig, AgentId, AgentState};
 use std::collections::HashMap;
@@ -37,7 +101,32 @@ impl std::error::Error for AgentRegistryError {}
 
 /// Registry of all agents in a session.
 ///
-/// Manages the lifecycle of agents, including registration, lookup, and removal.
+/// The `AgentRegistry` maintains a collection of agents and provides methods
+/// for managing their lifecycle. A default agent is always present and cannot
+/// be removed, ensuring backward compatibility.
+///
+/// # Thread Safety
+///
+/// Agent states are wrapped in `Arc` for efficient sharing across threads.
+/// The registry itself should be protected by a lock when shared across threads.
+///
+/// # Examples
+///
+/// ```
+/// use codex_core::agent::{AgentRegistry, AgentConfig, AgentRole};
+///
+/// let mut registry = AgentRegistry::new();
+///
+/// // Register a new agent
+/// let config = AgentConfig::new("planner", "Task Planner")
+///     .with_role(AgentRole::Planner)
+///     .with_allowed_tools(vec!["Read".to_string(), "Grep".to_string()]);
+///
+/// match registry.register(config) {
+///     Ok(agent_id) => println!("Registered agent: {}", agent_id.as_str()),
+///     Err(e) => eprintln!("Registration failed: {}", e),
+/// }
+/// ```
 pub struct AgentRegistry {
     /// Map of agent ID to agent state.
     agents: HashMap<AgentId, Arc<AgentState>>,
@@ -48,6 +137,19 @@ pub struct AgentRegistry {
 
 impl AgentRegistry {
     /// Creates a new agent registry with a default agent.
+    ///
+    /// The default agent is automatically created and will be used for
+    /// all operations that don't specify an agent ID, ensuring backward
+    /// compatibility with single-agent behavior.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use codex_core::agent::AgentRegistry;
+    ///
+    /// let registry = AgentRegistry::new();
+    /// assert_eq!(registry.count(), 1); // Contains default agent
+    /// ```
     pub fn new() -> Self {
         let default_id = AgentId::default_agent();
         let default_config = AgentConfig::new(
@@ -67,7 +169,24 @@ impl AgentRegistry {
 
     /// Registers a new agent with the given configuration.
     ///
-    /// Returns an error if an agent with the same ID already exists.
+    /// # Errors
+    ///
+    /// Returns [`AgentRegistryError::AgentAlreadyExists`] if an agent with
+    /// the same ID is already registered.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use codex_core::agent::{AgentRegistry, AgentConfig, AgentRole};
+    ///
+    /// let mut registry = AgentRegistry::new();
+    ///
+    /// let config = AgentConfig::new("coder", "Code Writer")
+    ///     .with_role(AgentRole::Coder);
+    ///
+    /// let agent_id = registry.register(config).unwrap();
+    /// assert_eq!(agent_id.as_str(), "coder");
+    /// ```
     pub fn register(&mut self, config: AgentConfig) -> Result<AgentId, AgentRegistryError> {
         let id = config.id.clone();
 
@@ -83,8 +202,27 @@ impl AgentRegistry {
 
     /// Unregisters an agent by ID.
     ///
-    /// Returns an error if the agent doesn't exist or if trying to unregister
-    /// the default agent.
+    /// # Errors
+    ///
+    /// - Returns [`AgentRegistryError::CannotUnregisterDefaultAgent`] if attempting
+    ///   to unregister the default agent.
+    /// - Returns [`AgentRegistryError::AgentNotFound`] if the agent doesn't exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use codex_core::agent::{AgentRegistry, AgentConfig};
+    ///
+    /// let mut registry = AgentRegistry::new();
+    ///
+    /// // Register an agent
+    /// let config = AgentConfig::new("temp", "Temporary Agent");
+    /// let agent_id = registry.register(config).unwrap();
+    ///
+    /// // Unregister it when done
+    /// registry.unregister(&agent_id).unwrap();
+    /// assert!(!registry.contains(&agent_id));
+    /// ```
     pub fn unregister(&mut self, id: &AgentId) -> Result<(), AgentRegistryError> {
         if id == &self.default_agent {
             return Err(AgentRegistryError::CannotUnregisterDefaultAgent);
@@ -133,6 +271,29 @@ impl AgentRegistry {
     }
 
     /// Gets an agent or the default agent if the ID is None.
+    ///
+    /// This is the primary method for resolving agent IDs in a backward-compatible way:
+    /// - If `id` is `None`, returns the default agent
+    /// - If `id` is `Some` but the agent doesn't exist, returns the default agent
+    /// - If `id` is `Some` and exists, returns that agent
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use codex_core::agent::{AgentRegistry, AgentConfig, AgentId};
+    ///
+    /// let mut registry = AgentRegistry::new();
+    /// let config = AgentConfig::new("custom", "Custom Agent");
+    /// registry.register(config).unwrap();
+    ///
+    /// // Get specific agent
+    /// let custom = registry.get_or_default(Some(&AgentId::new("custom")));
+    /// assert_eq!(custom.id().as_str(), "custom");
+    ///
+    /// // Get default when None
+    /// let default = registry.get_or_default(None);
+    /// assert_eq!(default.id(), registry.default_id());
+    /// ```
     pub fn get_or_default(&self, id: Option<&AgentId>) -> Arc<AgentState> {
         match id {
             Some(id) => self.get(id).unwrap_or_else(|| self.default()),

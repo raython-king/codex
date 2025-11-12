@@ -57,6 +57,7 @@ async fn submit_turn(test: &TestCodex, prompt: &str, sandbox_policy: SandboxPoli
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 

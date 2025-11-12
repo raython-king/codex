@@ -279,7 +279,9 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -351,7 +353,9 @@ async fn includes_conversation_id_and_model_headers_in_request() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -406,7 +410,9 @@ async fn includes_base_instructions_override_in_request() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -466,7 +472,9 @@ async fn chatgpt_auth_sends_correct_request() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -557,7 +565,9 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -596,7 +606,9 @@ async fn includes_user_instructions_message_in_request() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -657,7 +669,9 @@ async fn includes_developer_instructions_message_in_request() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -882,7 +896,9 @@ async fn token_count_includes_rate_limits_snapshot() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -1033,7 +1049,9 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .expect("submission should succeed while emitting usage limit error events");
 
@@ -1103,7 +1121,9 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
             items: vec![UserInput::Text {
                 text: "seed turn".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await?;
 
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -1113,7 +1133,9 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
             items: vec![UserInput::Text {
                 text: "trigger context window".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await?;
 
     let token_event = wait_for_event(&codex, |event| {
@@ -1228,7 +1250,9 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -1306,7 +1330,9 @@ async fn env_var_overrides_loaded_auth() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -1386,7 +1412,9 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text { text: "U1".into() }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -1395,7 +1423,9 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text { text: "U2".into() }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -1404,7 +1434,9 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text { text: "U3".into() }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;

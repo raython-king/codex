@@ -89,7 +89,9 @@ async fn continue_after_stream_error() {
             items: vec![UserInput::Text {
                 text: "first message".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -106,7 +108,9 @@ async fn continue_after_stream_error() {
             items: vec![UserInput::Text {
                 text: "follow up".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 

@@ -48,14 +48,16 @@ async fn interrupt_long_running_tool_emits_turn_aborted() {
             items: vec![UserInput::Text {
                 text: "start sleep".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
     // Wait until the exec begins to avoid a race, then interrupt.
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecCommandBegin(_))).await;
 
-    codex.submit(Op::Interrupt).await.unwrap();
+    codex.submit(Op::Interrupt { agent_id: None }).await.unwrap();
 
     // Expect TurnAborted soon after.
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnAborted(_))).await;
@@ -100,14 +102,16 @@ async fn interrupt_tool_records_history_entries() {
             items: vec![UserInput::Text {
                 text: "start history recording".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecCommandBegin(_))).await;
 
     tokio::time::sleep(Duration::from_secs_f32(0.1)).await;
-    codex.submit(Op::Interrupt).await.unwrap();
+    codex.submit(Op::Interrupt { agent_id: None }).await.unwrap();
 
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnAborted(_))).await;
 
@@ -116,7 +120,9 @@ async fn interrupt_tool_records_history_entries() {
             items: vec![UserInput::Text {
                 text: "follow up".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 

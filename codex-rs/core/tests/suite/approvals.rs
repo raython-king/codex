@@ -460,6 +460,7 @@ async fn submit_turn(
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -1274,7 +1275,9 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
                 .submit(Op::ExecApproval {
                     id: "0".into(),
                     decision: *decision,
-                })
+
+            agent_id: None,
+})
                 .await?;
             wait_for_completion(&test).await;
         }
@@ -1295,7 +1298,9 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
                 .submit(Op::PatchApproval {
                     id: "0".into(),
                     decision: *decision,
-                })
+
+            agent_id: None,
+})
                 .await?;
             wait_for_completion(&test).await;
         }

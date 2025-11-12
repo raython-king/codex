@@ -96,7 +96,9 @@ async fn retries_on_early_close() {
             items: vec![UserInput::Text {
                 text: "hello".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 

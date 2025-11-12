@@ -203,6 +203,7 @@ async fn unified_exec_emits_exec_command_begin_event() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -279,6 +280,7 @@ async fn unified_exec_respects_workdir_override() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -374,6 +376,7 @@ async fn unified_exec_emits_exec_command_end_event() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -445,6 +448,7 @@ async fn unified_exec_emits_output_delta_for_exec_command() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -536,6 +540,7 @@ async fn unified_exec_emits_output_delta_for_write_stdin() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -635,6 +640,7 @@ async fn unified_exec_skips_begin_event_for_empty_input() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -710,6 +716,7 @@ async fn exec_command_reports_chunk_and_exit_metadata() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -851,6 +858,7 @@ async fn write_stdin_returns_exit_metadata_and_clears_session() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -1013,6 +1021,7 @@ async fn unified_exec_emits_end_event_when_session_dies_via_stdin() -> Result<()
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -1099,6 +1108,7 @@ async fn unified_exec_reuses_session_via_stdin() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -1227,6 +1237,7 @@ PY
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -1333,6 +1344,7 @@ async fn unified_exec_timeout_and_followup_poll() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -1425,6 +1437,7 @@ PY
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 
@@ -1505,6 +1518,7 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 

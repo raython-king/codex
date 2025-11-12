@@ -49,6 +49,7 @@ async fn submit_turn(
             model: session_model,
             effort: None,
             summary: ReasoningSummary::Auto,
+        agent_id: None,
         })
         .await?;
 

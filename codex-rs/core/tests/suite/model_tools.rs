@@ -75,7 +75,9 @@ async fn collect_tool_identifiers_for_model(model: &str) -> Vec<String> {
             items: vec![UserInput::Text {
                 text: "hello tools".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;

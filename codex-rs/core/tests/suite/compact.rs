@@ -146,7 +146,9 @@ async fn summarize_context_three_requests_and_instructions() {
             items: vec![UserInput::Text {
                 text: "hello world".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -166,7 +168,9 @@ async fn summarize_context_three_requests_and_instructions() {
             items: vec![UserInput::Text {
                 text: THIRD_USER_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -452,7 +456,9 @@ async fn auto_compact_runs_after_token_limit_hit() {
             items: vec![UserInput::Text {
                 text: FIRST_AUTO_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -463,7 +469,9 @@ async fn auto_compact_runs_after_token_limit_hit() {
             items: vec![UserInput::Text {
                 text: SECOND_AUTO_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -474,7 +482,9 @@ async fn auto_compact_runs_after_token_limit_hit() {
             items: vec![UserInput::Text {
                 text: POST_AUTO_USER_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -692,7 +702,9 @@ async fn auto_compact_persists_rollout_entries() {
             items: vec![UserInput::Text {
                 text: FIRST_AUTO_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -702,7 +714,9 @@ async fn auto_compact_persists_rollout_entries() {
             items: vec![UserInput::Text {
                 text: SECOND_AUTO_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -804,7 +818,9 @@ async fn auto_compact_stops_after_failed_attempt() {
             items: vec![UserInput::Text {
                 text: FIRST_AUTO_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -899,7 +915,9 @@ async fn manual_compact_retries_after_context_window_error() {
             items: vec![UserInput::Text {
                 text: "first turn".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -1044,7 +1062,9 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
             items: vec![UserInput::Text {
                 text: first_user_message.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -1057,7 +1077,9 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
             items: vec![UserInput::Text {
                 text: second_user_message.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -1070,7 +1092,9 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
             items: vec![UserInput::Text {
                 text: final_user_message.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
@@ -1256,7 +1280,9 @@ async fn auto_compact_allows_multiple_attempts_when_interleaved_with_other_turn_
             items: vec![UserInput::Text {
                 text: MULTI_AUTO_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 
@@ -1369,7 +1395,9 @@ async fn auto_compact_triggers_after_function_call_over_95_percent_usage() {
             items: vec![UserInput::Text {
                 text: FUNCTION_CALL_LIMIT_MSG.into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await
         .unwrap();
 

@@ -62,7 +62,9 @@ echo -n "${@: -1}" > $(dirname "${0}")/notify.txt"#,
             items: vec![UserInput::Text {
                 text: "hello world".into(),
             }],
-        })
+
+            agent_id: None,
+})
         .await?;
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
 

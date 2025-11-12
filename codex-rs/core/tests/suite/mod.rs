@@ -37,6 +37,7 @@ mod list_dir;
 mod live_cli;
 mod model_overrides;
 mod model_tools;
+mod multi_agent_lifecycle;
 mod otel;
 mod prompt_caching;
 mod quota_exceeded;

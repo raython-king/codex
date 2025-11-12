@@ -148,7 +148,7 @@ pub struct AgentStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::{AgentConfig, AgentRole};
+    use crate::agent::AgentConfig;
 
     #[test]
     fn test_agent_state_creation() {

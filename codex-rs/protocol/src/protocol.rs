@@ -10,6 +10,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
+use crate::AgentConfig;
+use crate::AgentId;
 use crate::ConversationId;
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
@@ -64,12 +66,21 @@ pub struct Submission {
 pub enum Op {
     /// Abort current task.
     /// This server sends [`EventMsg::TurnAborted`] in response.
-    Interrupt,
+    /// If agent_id is None, interrupts all agents. If specified, only interrupts that agent.
+    Interrupt {
+        /// Optional agent ID to interrupt. If None, interrupts all agents.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        agent_id: Option<AgentId>,
+    },
 
     /// Input from the user
     UserInput {
         /// User input items, see `InputItem`
         items: Vec<UserInput>,
+
+        /// Optional agent ID to send this input to. If None, uses the default agent.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        agent_id: Option<AgentId>,
     },
 
     /// Similar to [`Op::UserInput`], but contains additional context required
@@ -100,6 +111,10 @@ pub enum Op {
         summary: ReasoningSummaryConfig,
         // The JSON schema to use for the final assistant message
         final_output_json_schema: Option<Value>,
+
+        /// Optional agent ID to send this turn to. If None, uses the default agent.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        agent_id: Option<AgentId>,
     },
 
     /// Override parts of the persistent turn context for subsequent turns.
@@ -143,6 +158,9 @@ pub enum Op {
         id: String,
         /// The user's decision in response to the request.
         decision: ReviewDecision,
+        /// Optional agent ID that requested this approval.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        agent_id: Option<AgentId>,
     },
 
     /// Approve a code patch
@@ -151,6 +169,9 @@ pub enum Op {
         id: String,
         /// The user's decision in response to the request.
         decision: ReviewDecision,
+        /// Optional agent ID that requested this approval.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        agent_id: Option<AgentId>,
     },
 
     /// Append an entry to the persistent cross-session message history.
@@ -194,6 +215,26 @@ pub enum Op {
     RunUserShellCommand {
         /// The raw command string after '!'
         command: String,
+    },
+
+    /// Register a new agent in the session.
+    ///
+    /// The agent will be available for subsequent operations.
+    /// Returns [`EventMsg::AgentRegistered`] on success or [`EventMsg::Error`] if
+    /// an agent with the same ID already exists.
+    RegisterAgent {
+        /// Configuration for the new agent.
+        config: AgentConfig,
+    },
+
+    /// Unregister an existing agent from the session.
+    ///
+    /// The agent will no longer be available for operations.
+    /// Returns [`EventMsg::AgentUnregistered`] on success or [`EventMsg::Error`] if
+    /// the agent doesn't exist or is the default agent (which cannot be unregistered).
+    UnregisterAgent {
+        /// ID of the agent to unregister.
+        agent_id: AgentId,
     },
 }
 
@@ -553,6 +594,12 @@ pub enum EventMsg {
     AgentMessageContentDelta(AgentMessageContentDeltaEvent),
     ReasoningContentDelta(ReasoningContentDeltaEvent),
     ReasoningRawContentDelta(ReasoningRawContentDeltaEvent),
+
+    /// Notification that a new agent was registered.
+    AgentRegistered(AgentRegisteredEvent),
+
+    /// Notification that an agent was unregistered.
+    AgentUnregistered(AgentUnregisteredEvent),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
@@ -565,6 +612,9 @@ pub struct ItemStartedEvent {
     pub thread_id: ConversationId,
     pub turn_id: String,
     pub item: TurnItem,
+    /// Agent that started this item
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub agent_id: Option<AgentId>,
 }
 
 impl HasLegacyEvent for ItemStartedEvent {
@@ -583,6 +633,9 @@ pub struct ItemCompletedEvent {
     pub thread_id: ConversationId,
     pub turn_id: String,
     pub item: TurnItem,
+    /// Agent that completed this item
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub agent_id: Option<AgentId>,
 }
 
 pub trait HasLegacyEvent {
@@ -643,6 +696,22 @@ impl HasLegacyEvent for ReasoningRawContentDeltaEvent {
             },
         )]
     }
+}
+
+/// Event emitted when a new agent is registered.
+#[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
+pub struct AgentRegisteredEvent {
+    /// ID of the newly registered agent.
+    pub agent_id: AgentId,
+    /// Human-readable name of the agent.
+    pub name: String,
+}
+
+/// Event emitted when an agent is unregistered.
+#[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
+pub struct AgentUnregisteredEvent {
+    /// ID of the unregistered agent.
+    pub agent_id: AgentId,
 }
 
 impl HasLegacyEvent for EventMsg {
@@ -1484,6 +1553,7 @@ mod tests {
                 id: "search-1".into(),
                 query: "find docs".into(),
             }),
+            agent_id: None,
         };
 
         let legacy_events = event.as_legacy_events(false);
@@ -1500,6 +1570,7 @@ mod tests {
             thread_id: ConversationId::new(),
             turn_id: "turn-1".into(),
             item: TurnItem::UserMessage(UserMessageItem::new(&[])),
+            agent_id: None,
         };
 
         assert!(event.as_legacy_events(false).is_empty());

@@ -156,6 +156,7 @@ impl TestCodex {
                 model: session_model,
                 effort: None,
                 summary: ReasoningSummary::Auto,
+                agent_id: None,
             })
             .await?;
 

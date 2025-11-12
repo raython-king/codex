@@ -110,7 +110,11 @@ pub(crate) async fn run_codex_conversation_one_shot(
     .await?;
 
     // Send the initial input to kick off the one-shot turn.
-    io.submit(Op::UserInput { items: input }).await?;
+    io.submit(Op::UserInput {
+        items: input,
+        agent_id: None,
+    })
+    .await?;
 
     // Bridge events so we can observe completion and shut down automatically.
     let (tx_bridge, rx_bridge) = async_channel::bounded(SUBMISSION_CHANNEL_CAPACITY);
@@ -244,7 +248,13 @@ async fn handle_exec_approval(
     )
     .await;
 
-    let _ = codex.submit(Op::ExecApproval { id, decision }).await;
+    let _ = codex
+        .submit(Op::ExecApproval {
+            id,
+            decision,
+            agent_id: None,
+        })
+        .await;
 }
 
 /// Handle an ApplyPatchApprovalRequest by consulting the parent session and replying.
@@ -272,7 +282,13 @@ async fn handle_patch_approval(
         cancel_token,
     )
     .await;
-    let _ = codex.submit(Op::PatchApproval { id, decision }).await;
+    let _ = codex
+        .submit(Op::PatchApproval {
+            id,
+            decision,
+            agent_id: None,
+        })
+        .await;
 }
 
 /// Await an approval decision, aborting on cancellation.

@@ -169,6 +169,7 @@ impl ApprovalOverlay {
         self.app_event_tx.send(AppEvent::CodexOp(Op::ExecApproval {
             id: id.to_string(),
             decision,
+            agent_id: None,
         }));
     }
 
@@ -176,6 +177,7 @@ impl ApprovalOverlay {
         self.app_event_tx.send(AppEvent::CodexOp(Op::PatchApproval {
             id: id.to_string(),
             decision,
+            agent_id: None,
         }));
     }
 

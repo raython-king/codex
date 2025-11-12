@@ -293,7 +293,7 @@ pub async fn run_main(cli: Cli, codex_linux_sandbox_exe: Option<PathBuf>) -> any
                     _ = tokio::signal::ctrl_c() => {
                         tracing::debug!("Keyboard interrupt");
                         // Immediately notify Codex to abort any in‑flight task.
-                        conversation.submit(Op::Interrupt).await.ok();
+                        conversation.submit(Op::Interrupt { agent_id: None }).await.ok();
 
                         // Exit the inner loop and return to the main input prompt. The codex
                         // will emit a `TurnInterrupted` (Error) event which is drained later.
@@ -339,6 +339,7 @@ pub async fn run_main(cli: Cli, codex_linux_sandbox_exe: Option<PathBuf>) -> any
             effort: default_effort,
             summary: default_summary,
             final_output_json_schema: output_schema,
+            agent_id: None,
         })
         .await?;
     info!("Sent prompt with event ID: {initial_prompt_task_id}");

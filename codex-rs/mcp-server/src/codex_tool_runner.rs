@@ -94,6 +94,7 @@ pub async fn run_codex_tool_session(
             items: vec![UserInput::Text {
                 text: initial_prompt.clone(),
             }],
+            agent_id: None,
         },
     };
 
@@ -128,6 +129,7 @@ pub async fn run_codex_tool_session_reply(
     if let Err(e) = conversation
         .submit(Op::UserInput {
             items: vec![UserInput::Text { text: prompt }],
+            agent_id: None,
         })
         .await
     {
@@ -180,6 +182,7 @@ async fn run_codex_tool_session_inner(
                         reason: _,
                         risk,
                         parsed_cmd,
+                        ..
                     }) => {
                         handle_exec_approval_request(
                             command,
@@ -212,6 +215,7 @@ async fn run_codex_tool_session_inner(
                         reason,
                         grant_root,
                         changes,
+                        ..
                     }) => {
                         handle_patch_approval_request(
                             call_id,
@@ -297,7 +301,9 @@ async fn run_codex_tool_session_inner(
                     | EventMsg::UndoStarted(_)
                     | EventMsg::UndoCompleted(_)
                     | EventMsg::ExitedReviewMode(_)
-                    | EventMsg::DeprecationNotice(_) => {
+                    | EventMsg::DeprecationNotice(_)
+                    | EventMsg::AgentRegistered(_)
+                    | EventMsg::AgentUnregistered(_) => {
                         // For now, we do not do anything extra for these
                         // events. Note that
                         // send(codex_event_to_notification(&event)) above has

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::parse_command::ParsedCommand;
 use crate::protocol::FileChange;
+use crate::AgentId;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -47,6 +48,9 @@ pub struct ExecApprovalRequestEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub risk: Option<SandboxCommandAssessment>,
     pub parsed_cmd: Vec<ParsedCommand>,
+    /// Agent that requested this approval.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub agent_id: Option<AgentId>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
@@ -60,4 +64,7 @@ pub struct ApplyPatchApprovalRequestEvent {
     /// When set, the agent is asking the user to allow writes under this root for the remainder of the session.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grant_root: Option<PathBuf>,
+    /// Agent that requested this approval.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub agent_id: Option<AgentId>,
 }

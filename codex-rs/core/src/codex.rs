@@ -781,6 +781,7 @@ impl Session {
                 thread_id: self.conversation_id,
                 turn_id: turn_context.sub_id.clone(),
                 item: item.clone(),
+                agent_id: None,
             }),
         )
         .await;
@@ -793,6 +794,7 @@ impl Session {
                 thread_id: self.conversation_id,
                 turn_id: turn_context.sub_id.clone(),
                 item,
+                agent_id: None,
             }),
         )
         .await;
@@ -865,6 +867,7 @@ impl Session {
             reason,
             risk,
             parsed_cmd,
+            agent_id: None,
         });
         self.send_event(turn_context, event).await;
         rx_approve.await.unwrap_or_default()
@@ -901,6 +904,7 @@ impl Session {
             changes,
             reason,
             grant_root,
+            agent_id: None,
         });
         self.send_event(turn_context, event).await;
         rx_approve
@@ -1262,7 +1266,7 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
     while let Ok(sub) = rx_sub.recv().await {
         debug!(?sub, "Submission");
         match sub.op.clone() {
-            Op::Interrupt => {
+            Op::Interrupt { .. } => {
                 handlers::interrupt(&sess).await;
             }
             Op::OverrideTurnContext {
@@ -1291,10 +1295,10 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
                 handlers::user_input_or_turn(&sess, sub.id.clone(), sub.op, &mut previous_context)
                     .await;
             }
-            Op::ExecApproval { id, decision } => {
+            Op::ExecApproval { id, decision, .. } => {
                 handlers::exec_approval(&sess, id, decision).await;
             }
-            Op::PatchApproval { id, decision } => {
+            Op::PatchApproval { id, decision, .. } => {
                 handlers::patch_approval(&sess, id, decision).await;
             }
             Op::AddToHistory { text } => {
@@ -1390,6 +1394,7 @@ mod handlers {
                 summary,
                 final_output_json_schema,
                 items,
+                ..
             } => (
                 items,
                 SessionSettingsUpdate {
@@ -1402,7 +1407,7 @@ mod handlers {
                     final_output_json_schema: Some(final_output_json_schema),
                 },
             ),
-            Op::UserInput { items } => (items, SessionSettingsUpdate::default()),
+            Op::UserInput { items, .. } => (items, SessionSettingsUpdate::default()),
             _ => unreachable!(),
         };
 

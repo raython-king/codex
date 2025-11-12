@@ -1329,6 +1329,7 @@ impl ChatWidget {
                     // }),
                     msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
                         call_id: "1".to_string(),
+                        agent_id: None,
                         changes: HashMap::from([
                             (
                                 PathBuf::from("/tmp/test.txt"),
@@ -1438,7 +1439,7 @@ impl ChatWidget {
         }
 
         self.codex_op_tx
-            .send(Op::UserInput { items })
+            .send(Op::UserInput { items, agent_id: None })
             .unwrap_or_else(|e| {
                 tracing::error!("failed to send message: {e}");
             });
@@ -1575,7 +1576,9 @@ impl ChatWidget {
             | EventMsg::ItemCompleted(_)
             | EventMsg::AgentMessageContentDelta(_)
             | EventMsg::ReasoningContentDelta(_)
-            | EventMsg::ReasoningRawContentDelta(_) => {}
+            | EventMsg::ReasoningRawContentDelta(_)
+            | EventMsg::AgentRegistered(_)
+            | EventMsg::AgentUnregistered(_) => {}
         }
     }
 
@@ -2483,7 +2486,7 @@ impl ChatWidget {
 
         if self.bottom_pane.is_task_running() {
             self.bottom_pane.show_ctrl_c_quit_hint();
-            self.submit_op(Op::Interrupt);
+            self.submit_op(Op::Interrupt { agent_id: None });
             return;
         }
 

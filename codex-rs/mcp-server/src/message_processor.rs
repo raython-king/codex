@@ -594,7 +594,7 @@ impl MessageProcessor {
         let err = codex_arc
             .submit_with_id(Submission {
                 id: request_id_string,
-                op: codex_core::protocol::Op::Interrupt,
+                op: codex_core::protocol::Op::Interrupt { agent_id: None },
             })
             .await;
         if let Err(e) = err {

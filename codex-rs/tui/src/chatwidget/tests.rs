@@ -796,7 +796,7 @@ fn streaming_final_answer_keeps_task_running_state() {
 
     chat.handle_key_event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
     match op_rx.try_recv() {
-        Ok(Op::Interrupt) => {}
+        Ok(Op::Interrupt { .. }) => {}
         other => panic!("expected Op::Interrupt, got {other:?}"),
     }
     assert!(chat.bottom_pane.ctrl_c_quit_hint_visible());
@@ -1876,6 +1876,7 @@ fn approval_modal_exec_without_reason_snapshot() {
         reason: None,
         risk: None,
         parsed_cmd: vec![],
+        agent_id: None,
     };
     chat.handle_codex_event(Event {
         id: "sub-approve-noreason".into(),
@@ -2392,7 +2393,7 @@ fn apply_patch_full_flow_integration_like() {
         .try_recv()
         .expect("expected op forwarded to codex channel");
     match forwarded {
-        Op::PatchApproval { id, decision } => {
+        Op::PatchApproval { id, decision, .. } => {
             assert_eq!(id, "sub-xyz");
             assert_matches!(decision, codex_core::protocol::ReviewDecision::Approved);
         }

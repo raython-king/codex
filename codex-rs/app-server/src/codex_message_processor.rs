@@ -2076,6 +2076,7 @@ impl CodexMessageProcessor {
         let _ = conversation
             .submit(Op::UserInput {
                 items: mapped_items,
+                agent_id: None,
             })
             .await;
 
@@ -2130,6 +2131,7 @@ impl CodexMessageProcessor {
                 effort,
                 summary,
                 final_output_json_schema: None,
+                agent_id: None,
             })
             .await;
 
@@ -2167,7 +2169,7 @@ impl CodexMessageProcessor {
         }
 
         // Submit the interrupt; we'll respond upon TurnAborted.
-        let _ = conversation.submit(Op::Interrupt).await;
+        let _ = conversation.submit(Op::Interrupt { agent_id: None }).await;
     }
 
     async fn turn_start(&self, request_id: RequestId, params: TurnStartParams) {
@@ -2214,6 +2216,7 @@ impl CodexMessageProcessor {
         let turn_id = conversation
             .submit(Op::UserInput {
                 items: mapped_items,
+                agent_id: None,
             })
             .await;
 
@@ -2270,7 +2273,7 @@ impl CodexMessageProcessor {
         }
 
         // Submit the interrupt; we'll respond upon TurnAborted.
-        let _ = conversation.submit(Op::Interrupt).await;
+        let _ = conversation.submit(Op::Interrupt { agent_id: None }).await;
     }
 
     async fn add_conversation_listener(
@@ -2558,6 +2561,7 @@ async fn apply_bespoke_event_handling(
             changes,
             reason,
             grant_root,
+            ..
         }) => {
             let params = ApplyPatchApprovalParams {
                 conversation_id,
@@ -2581,6 +2585,7 @@ async fn apply_bespoke_event_handling(
             reason,
             risk,
             parsed_cmd,
+            ..
         }) => {
             let params = ExecCommandApprovalParams {
                 conversation_id,
@@ -2680,6 +2685,7 @@ async fn on_patch_approval_response(
                 .submit(Op::PatchApproval {
                     id: event_id.clone(),
                     decision: ReviewDecision::Denied,
+                    agent_id: None,
                 })
                 .await
             {
@@ -2701,6 +2707,7 @@ async fn on_patch_approval_response(
         .submit(Op::PatchApproval {
             id: event_id,
             decision: response.decision,
+            agent_id: None,
         })
         .await
     {
@@ -2737,6 +2744,7 @@ async fn on_exec_approval_response(
         .submit(Op::ExecApproval {
             id: event_id,
             decision: response.decision,
+            agent_id: None,
         })
         .await
     {

@@ -6,6 +6,7 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 
 mod apply_patch;
+pub mod agent;
 pub mod auth;
 pub mod bash;
 mod chat_completions;
@@ -54,6 +55,8 @@ pub use conversation_manager::NewConversation;
 // Re-export common auth types for workspace consumers
 pub use auth::AuthManager;
 pub use auth::CodexAuth;
+// Re-export agent types for multi-agent support
+pub use agent::{AgentConfig, AgentId, AgentRegistry, AgentRole, AgentState};
 pub mod default_client;
 pub mod model_family;
 mod openai_model_info;

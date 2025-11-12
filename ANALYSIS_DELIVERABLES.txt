@@ -1,0 +1,326 @@
+================================================================================
+CODEX MULTI-AGENT ARCHITECTURE ANALYSIS - DELIVERABLES
+================================================================================
+
+Analysis Completed: November 12, 2025
+Thoroughness Level: Very Thorough
+Files Analyzed: 20+ core files
+Total Analysis Pages: 1,006 lines
+
+================================================================================
+DELIVERABLE FILES
+================================================================================
+
+1. ARCHITECTURE_ANALYSIS_MULTIAGENT.md (1,006 lines)
+   - Complete 11-section deep dive
+   - All analysis organized by topic
+   - Code examples and file references
+   - Design recommendations for multi-agent upgrade
+   
+   Sections:
+   - Current Agent Implementation & Entry Points
+   - Conversation Loop (codex.rs)
+   - Tool Execution & Handling
+   - Protocol & Event System
+   - Session & State Management
+   - Existing Agent-Related Abstractions
+   - Key Architectural Constraints & Patterns
+   - What Needs to Be Preserved
+   - Injection Points for Multi-Agent Capabilities
+   - Design Recommendations for Multi-Agent Upgrade
+   - Specific Files to Modify for Multi-Agent
+
+2. ARCHITECTURE_SUMMARY.txt
+   - Executive summary (2-3 page equivalent)
+   - High-level findings and key concepts
+   - Quick reference for decision makers
+   - Risk assessment and recommendations
+   
+3. ARCHITECTURE_FILES_REFERENCE.md
+   - Complete file listing by function
+   - Tool handlers inventory (11 handlers)
+   - Task implementations (6 types)
+   - Architecture layers diagram
+   - Multi-agent modification impact matrix
+
+4. ANALYSIS_DELIVERABLES.txt (this file)
+   - Index of all deliverables
+   - Navigation guide
+
+================================================================================
+KEY FINDINGS SUMMARY
+================================================================================
+
+CURRENT ARCHITECTURE:
+✓ Queue-based async pattern (Submission → Event)
+✓ Single submission_loop dispatcher
+✓ One active task per session enforced
+✓ Well-abstracted tool system (11 handlers)
+✓ Event system with per-submission correlation
+✓ Modular task types (SessionTask trait)
+✓ Flexible LLM provider support
+
+CRITICAL CONSTRAINTS:
+✗ One active task per session (no parallel agents)
+✗ Sequential submission processing
+✗ Turn-level parallelism only (within a turn)
+✗ Single cancellation token (broadcast-style)
+
+MULTI-AGENT READINESS:
+✓ SessionTask trait enables new task types
+✓ ToolRouter abstraction is tool-agnostic
+✓ ToolOrchestrator already modular
+✓ ApprovalStore already keyable
+✓ Event correlation ready for extension
+
+PRESERVATION REQUIREMENTS:
+✓ Event ordering guarantees
+✓ Session isolation
+✓ Approval system semantics
+✓ Rollout persistence
+✓ Cancellation guarantees
+
+================================================================================
+ARCHITECTURE HIGHLIGHTS
+================================================================================
+
+ENTRY POINT:
+  Codex::spawn()
+    └─ Creates single Codex + Session + submission_loop task
+    └─ Opens submissions channel (tx_sub) and events channel (rx_event)
+
+MAIN LOOP:
+  submission_loop(session, config, rx_sub)
+    └─ Sequential dispatcher for all operations
+    └─ Handles 13+ operation types
+    └─ Routes to appropriate handler
+
+TASK EXECUTION:
+  Session::spawn_task(turn_context, input, task)
+    ├─ Aborts previous task (TurnAbortReason::Replaced)
+    ├─ Spawns tokio task running task.run()
+    ├─ Emits TaskComplete event on finish
+    └─ Stores task in active_turn mutex
+
+TURN PROCESSING:
+  run_turn(session, turn_context, input, cancellation_token)
+    ├─ Streams from LLM via ModelClient
+    ├─ Routes tool calls via ToolRouter
+    ├─ Processes items in order
+    ├─ Retries on stream errors (max 3x)
+    └─ Returns token usage + collected items
+
+TOOL EXECUTION:
+  ToolRouter::dispatch_tool_call()
+    ├─ Routes to appropriate ToolHandler
+    └─ ToolHandler::handle()
+        └─ Invokes ToolOrchestrator for approval/sandbox
+            ├─ Request approval (if needed)
+            ├─ Select sandbox
+            ├─ Execute
+            └─ Retry without sandbox (if denied)
+
+STATE MANAGEMENT:
+  Session {
+    conversation_id: UUID,
+    state: Mutex<SessionState> {
+      session_configuration,
+      history: ContextManager,
+      latest_rate_limits,
+    },
+    active_turn: Mutex<Option<ActiveTurn>> {
+      tasks: IndexMap<sub_id, RunningTask>,
+      turn_state: Mutex<TurnState> {
+        pending_approvals: HashMap<sub_id, Sender<ReviewDecision>>,
+        pending_input: Vec<ResponseInputItem>,
+      },
+    },
+    services: SessionServices {
+      mcp_connection_manager,
+      unified_exec_manager,
+      notifier,
+      rollout: Mutex<RolloutRecorder>,
+      auth_manager,
+      otel_event_manager,
+      tool_approvals: Mutex<ApprovalStore>,
+    },
+  }
+
+================================================================================
+MULTI-AGENT PHASES
+================================================================================
+
+PHASE 1: MINIMAL VIABLE (Low Risk, 2-3 weeks)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Add optional agent_id field to Op (backward compatible)
+- Create AgentRegistry wrapper around Session
+- Route submissions to agents in submission_loop
+- Each agent gets dedicated task queue (Option<RunningTask>)
+- Agents share session state (history, auth, services)
+- No breaking changes to protocol or public API
+
+Impact:
+  Benefits:  Easy migration, low risk, backward compatible
+  Effort:    2-3 weeks
+  Risk:      Low-Medium
+  Breaking:  None
+
+PHASE 2: CONCURRENT EXECUTION (Medium Risk, 4-6 weeks)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Per-agent executor loops (tokio::spawn)
+- Independent submission channels per agent
+- Shared session state with proper synchronization
+- Hierarchical event ID (agent_id, operation_id)
+- Approval caching keyed by (agent_id, request)
+
+Impact:
+  Benefits:  True concurrency, cleaner separation
+  Effort:    4-6 weeks
+  Risk:      Medium
+  Breaking:  Protocol changes (additive, extensible)
+
+PHASE 3: ADVANCED FEATURES (Higher Risk, TBD)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Agent-to-agent communication (tool calls)
+- Hierarchical agents (parent/child coordination)
+- Dynamic agent creation (spawn on demand)
+- Agent-specific policies (access control)
+- Tool conflict coordination (distributed locks)
+
+Impact:
+  Benefits:  Advanced capabilities
+  Effort:    TBD
+  Risk:      High
+  Breaking:  Significant protocol changes needed
+
+================================================================================
+FILES TO MODIFY (Ranked by Priority)
+================================================================================
+
+TIER 1: MUST MODIFY
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. codex.rs:1259-1340 (submission_loop)                        │
+│    - Add agent router logic                                     │
+│    - Dispatch to per-agent handlers                             │
+│                                                                 │
+│ 2. codex.rs:251-258 (Session struct)                           │
+│    - Add agents: HashMap<String, Arc<AgentInstance>>            │
+│    - Add agent_next_id: AtomicU64                               │
+│                                                                 │
+│ 3. codex.rs:255 (active_turn)                                  │
+│    - Move to Agent struct OR                                    │
+│    - Extend to HashMap<agent_id, ActiveTurn>                   │
+│                                                                 │
+│ 4. tools/orchestrator.rs (ToolOrchestrator)                    │
+│    - Extend ApprovalCtx to include agent_id                    │
+│    - Pass agent context through approval flow                  │
+│                                                                 │
+│ 5. tools/sandboxing.rs (ApprovalStore)                         │
+│    - Key by (agent_id, approval_key) instead of just key       │
+│    - Maintain per-agent approval cache                         │
+│                                                                 │
+│ 6. protocol.rs (Op, Event)                                     │
+│    - Add optional agent_id field (backward compatible)         │
+│    - Update all Op variants to carry agent context             │
+└─────────────────────────────────────────────────────────────────┘
+
+TIER 2: SHOULD CONSIDER
+┌─────────────────────────────────────────────────────────────────┐
+│ 7. state/turn.rs (ActiveTurn, TurnState)                       │
+│    - Replicate per agent OR consolidate with agent state       │
+│                                                                 │
+│ 8. tasks/mod.rs (spawn_task)                                   │
+│    - Make agent-aware (which agent's task queue?)              │
+│    - Route to correct agent                                    │
+│                                                                 │
+│ 9. rollout/ (RolloutRecorder)                                  │
+│    - Consider per-agent event partitioning                     │
+│    - Or maintain global with agent_id in events                │
+│                                                                 │
+│ 10. context_manager/ (ContextManager)                          │
+│     - Review synchronization for shared history                │
+│     - May need per-agent context view                          │
+└─────────────────────────────────────────────────────────────────┘
+
+TIER 3: LIKELY UNAFFECTED
+┌─────────────────────────────────────────────────────────────────┐
+│ - Individual task implementations (regular.rs, compact.rs, etc.)│
+│ - Individual tool handlers (shell.rs, apply_patch.rs, etc.)    │
+│ - Tool runtime implementations                                 │
+│ - Core protocol types (extensible, backward compatible)        │
+│ - Client/model code                                            │
+│ - Sandbox/approval trait definitions                           │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================================
+RECOMMENDED NEXT STEPS
+================================================================================
+
+1. IMMEDIATE (This Week)
+   - Review full ARCHITECTURE_ANALYSIS_MULTIAGENT.md
+   - Share summary with team for feedback
+   - Create Phase 1 design document
+   - Identify stakeholders for discussion
+
+2. SHORT-TERM (Next 1-2 Weeks)
+   - Begin Phase 1 implementation (add agent_id support)
+   - Create AgentRegistry abstraction
+   - Add tests for agent routing
+   - Maintain backward compatibility
+   
+3. MEDIUM-TERM (4-6 Weeks)
+   - Phase 2 planning: concurrent execution
+   - Design hierarchical event ID system
+   - Plan approval caching refactor
+   - Identify cross-agent tool conflicts
+   
+4. LONG-TERM (>6 Weeks)
+   - Phase 3 advanced features
+   - Agent communication protocol
+   - Tool conflict resolution
+   - Dynamic agent lifecycle
+
+================================================================================
+RISK MITIGATION STRATEGIES
+================================================================================
+
+BACKWARD COMPATIBILITY:
+✓ Add optional agent_id field to Op (defaults to "default")
+✓ Single-agent behavior unchanged for existing callers
+✓ Extend protocol enums with new variants (non-breaking)
+✓ Keep public Codex API stable
+
+TESTING:
+✓ Add comprehensive agent routing tests
+✓ Test approval caching with agent_id
+✓ Test cross-agent state isolation
+✓ Maintain existing single-agent test suite
+
+ROLLOUT:
+✓ Phase 1: Feature flag for multi-agent mode
+✓ Phase 2: Gradual migration to concurrent execution
+✓ Phase 3: Only after Phase 2 stabilization
+
+MONITORING:
+✓ Add telemetry for agent execution
+✓ Track approval cache hits per agent
+✓ Monitor for cross-agent state leakage
+✓ Performance metrics for concurrent agents
+
+================================================================================
+CONTACT & QUESTIONS
+================================================================================
+
+For detailed questions on specific components, refer to:
+
+- Session management → codex.rs, state/
+- Tool execution → tools/orchestrator.rs, tools/sandboxing.rs
+- Protocol & events → protocol/, event_mapping.rs
+- Task lifecycle → tasks/mod.rs
+- LLM integration → client.rs, model_provider_info.rs
+
+All code paths are well-commented and follow Rust best practices.
+
+================================================================================
+END OF ANALYSIS DELIVERABLES
+================================================================================

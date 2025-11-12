@@ -1,0 +1,196 @@
+================================================================================
+CODEX SINGLE-AGENT ARCHITECTURE - EXECUTIVE SUMMARY
+================================================================================
+
+ANALYZED SCOPE:
+- codex-rs/core/src/codex.rs (3,192 lines)
+- 20+ supporting files across tools/, protocol/, state/, tasks/ modules
+- Focus: Main conversation loop, tool execution, event system, session management
+
+================================================================================
+KEY FINDINGS
+================================================================================
+
+1. ARCHITECTURE PATTERN: Queue-Based Async (Submission Queue → Event Queue)
+   
+   Entry Point: Codex::spawn()
+   - Creates single Codex instance with channel pair (submissions in, events out)
+   - Launches background submission_loop task that processes all operations
+   - Session-scoped state managed via Arc<Session> with Mutex-protected components
+   
+2. CRITICAL CONSTRAINT: Single Active Task Per Session
+   
+   - Enforced via: active_turn: Mutex<Option<ActiveTurn>>
+   - New task aborts previous (TurnAbortReason::Replaced)
+   - Cannot have parallel independent agents in current design
+   - Tool-level parallelism exists (within a turn) but not task-level
+   
+3. CONVERSATION LOOP FLOW:
+   
+   submission_loop (sequential dispatcher)
+      ↓
+   spawn_task() → creates one SessionTask (RegularTask, CompactTask, etc.)
+      ↓
+   run_turn() → main conversation loop
+      ├─ Stream from LLM via ModelClient
+      ├─ For each response item:
+      │  ├─ Tool calls → routed through ToolRouter
+      │  └─ Non-tool items → emit ItemStarted/ItemCompleted events
+      └─ Retry on stream errors (max 3x with backoff)
+   
+4. TOOL EXECUTION MODEL:
+   
+   ToolRouter (registry dispatcher)
+      ↓
+   ToolHandler::handle() (specific handler implementation)
+      ↓
+   ToolOrchestrator (approval + sandbox + retry)
+      ├─ Step 1: Request approval if needed
+      ├─ Step 2: Select sandbox (Auto/Require/Forbid)
+      ├─ Step 3: Execute in sandbox
+      └─ Step 4: Retry without sandbox on denial (if escalation enabled)
+   
+5. STATE MANAGEMENT:
+   
+   SessionState (immutable per session):
+   - Conversation history (ContextManager)
+   - Rate limits
+   - Model configuration
+   
+   ActiveTurn (mutable per turn):
+   - Running task
+   - Pending approvals (keyed by sub_id)
+   - Buffered tool outputs
+   
+   TurnContext (per-request config):
+   - Client (ModelClient instance)
+   - Working directory
+   - Policies (approval, sandbox)
+   - Tool specs
+   
+6. PROTOCOL DESIGN:
+   
+   Submissions (user → agent):
+   - Interrupt, UserInput, UserTurn, Approval decisions, Undo, Compact, etc.
+   - Each correlated by unique submission.id
+   
+   Events (agent → user):
+   - ItemStarted/ItemCompleted (item-level granularity)
+   - ExecApprovalRequest/ApplyPatchApprovalRequest (blocks tool execution)
+   - TaskComplete, TurnAborted, TokenCount, Error, etc.
+   - All events carry submission.id for correlation
+   
+7. TOOL ABSTRACTIONS:
+   
+   SessionTask trait:
+   - Pluggable task types (Regular, Compact, Undo, Review, GhostSnapshot, UserShellCommand)
+   - Each has run() and abort() lifecycle
+   - Returns optional final message
+   
+   ToolHandler trait:
+   - Pluggable tool implementations (11 built-in handlers)
+   - Dispatches based on tool name and payload type
+   - Async execution with error handling
+   
+   ToolRuntime trait:
+   - Generic approval/sandbox orchestration
+   - Implemented by shell and patch runtimes
+   - Allows per-tool customization of approval flows
+
+================================================================================
+WHAT MUST BE PRESERVED
+================================================================================
+
+1. Event Ordering Guarantees
+   - Events for a turn must be causally ordered
+   - Correlation via submission.id
+   
+2. Session Isolation
+   - Each session independent (unique conversation_id)
+   - State must not leak between sessions
+   
+3. Approval System Semantics
+   - Approvals block tool execution (await decision)
+   - Can be cached per session (ApprovedForSession)
+   
+4. Rollout Persistence
+   - All state changes persisted before returning
+   - Enables resuming, forking, replaying
+   
+5. Cancellation Guarantees
+   - Interrupt op gracefully cancels task
+   - Tool outputs collected (no state corruption)
+
+================================================================================
+MULTI-AGENT INJECTION POINTS
+================================================================================
+
+PHASE 1: Minimal Viable (Low Risk)
+- Add optional agent_id to Op enum
+- Create AgentRegistry wrapper
+- Route submissions to agents in submission_loop
+- Each agent gets dedicated task queue
+- Agents share session state (history, auth)
+
+PHASE 2: Concurrent Execution (Medium Risk)
+- Per-agent executor loops (tokio::spawn)
+- Independent submission channels per agent
+- Shared session state with synchronization
+- Potential tool conflict coordination needed
+
+PHASE 3: Advanced Features (Higher Risk)
+- Agent-to-agent communication
+- Hierarchical agents
+- Dynamic agent creation
+- Agent-specific policies
+
+FILES TO MODIFY:
+- codex.rs:1259-1340 (submission_loop)
+- codex.rs:251-258 (Session struct)
+- codex.rs:255 (active_turn field)
+- state/turn.rs (ActiveTurn, TurnState)
+- tools/orchestrator.rs (approval key includes agent_id)
+- tools/sandboxing.rs (ApprovalStore keyed by (agent_id, key))
+- protocol.rs (Op, Event with optional agent_id)
+
+================================================================================
+KEY STRENGTHS FOR MULTI-AGENT UPGRADE
+================================================================================
+
+1. SessionTask trait already enables pluggable task types
+2. ToolRouter already abstracts tool dispatch (extensible)
+3. ToolRuntime/Orchestrator already encapsulates approval/sandbox logic
+4. ModelClient abstracts LLM provider (multi-model ready)
+5. Event system already supports hierarchical correlation (submission.id)
+6. Approval caching abstraction ready for per-agent keying
+7. Cancellation tokens already granular (per task)
+
+================================================================================
+RISKS & CONSTRAINTS
+================================================================================
+
+1. Single submission_loop (synchronous) → requires refactor for true concurrency
+2. One active task enforcement → needs per-agent task queue redesign
+3. Shared history with per-turn compaction → synchronization overhead
+4. Approval decisions keyed by sub_id → needs hierarchical ID scheme
+5. Rollout persistence → might need per-agent partitioning
+6. Cross-agent tool coordination → unaddressed complexity
+7. Event ordering across concurrent agents → careful design needed
+
+================================================================================
+RECOMMENDATION: START WITH PHASE 1
+================================================================================
+
+Implement minimal viable multi-agent first:
+- Add agent_id field to Op (optional for backward compatibility)
+- Extend Session to hold HashMap<agent_id, AgentState>
+- Route submissions to agents in existing submission_loop
+- Each agent gets independent task queue but shares session services
+- Low risk, high confidence, achieves basic multi-agent capability
+- Positions well for phase 2 without massive refactoring
+
+Expected effort: 2-3 weeks
+Risk level: Low-Medium
+Breaking changes: None (backward compatible)
+
+================================================================================

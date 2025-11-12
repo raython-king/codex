@@ -794,6 +794,38 @@ impl Session {
         queue.has_messages(agent_id)
     }
 
+    /// Retrieves and processes the next message for an agent.
+    ///
+    /// This method dequeues the message, records it in the agent's history,
+    /// and emits a MessageReceived event.
+    pub(crate) async fn process_next_message(
+        &self,
+        agent_id: &AgentId,
+    ) -> Option<codex_protocol::AgentMessage> {
+        // Dequeue message
+        let queued_msg = self.receive_agent_message(agent_id).await?;
+        let message = queued_msg.message;
+
+        // Record in agent's history
+        if let Some(agent_state) = self.agent_registry.read().unwrap().get(agent_id) {
+            agent_state.record_message(message.clone());
+        }
+
+        // Emit MessageReceived event
+        let event = EventMsg::MessageReceived(codex_protocol::protocol::MessageReceivedEvent {
+            message_id: message.id.clone(),
+            from: message.from.clone(),
+            to: message.to.clone(),
+            message_type: message.message_type,
+        });
+
+        if let Err(e) = self.tx_event.send(Event { id: String::new(), msg: event }).await {
+            error!("Failed to send MessageReceived event: {e}");
+        }
+
+        Some(message)
+    }
+
     /// Checks if the current agent (or default) can use the specified tool.
     pub(crate) fn can_agent_use_tool(
         &self,
@@ -1470,6 +1502,9 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
             Op::SendToAgent { message } => {
                 handlers::send_agent_message(&sess, message).await;
             }
+            Op::ReceiveMessage { agent_id } => {
+                handlers::receive_agent_message(&sess, agent_id).await;
+            }
             _ => {} // Ignore unknown ops; enum is non_exhaustive to allow extensions.
         }
     }
@@ -1478,7 +1513,7 @@ async fn submission_loop(sess: Arc<Session>, config: Arc<Config>, rx_sub: Receiv
 
 /// Operation handlers
 mod handlers {
-    use crate::agent::{AgentConfig, AgentRole};
+    use crate::agent::{AgentConfig, AgentId, AgentRole};
     use crate::codex::Session;
     use crate::codex::SessionSettingsUpdate;
     use crate::codex::TurnContext;
@@ -1486,7 +1521,7 @@ mod handlers {
     use crate::codex::spawn_review_thread;
     use crate::config::Config;
     use crate::mcp::auth::compute_auth_statuses;
-    use tracing::error;
+    use tracing::{debug, error};
     use crate::tasks::CompactTask;
     use crate::tasks::RegularTask;
     use crate::tasks::UndoTask;
@@ -1905,6 +1940,17 @@ mod handlers {
                 if let Err(e) = sess.tx_event.send(Event { id: String::new(), msg: event }).await {
                     error!("Failed to send error event: {e}");
                 }
+            }
+        }
+    }
+
+    pub async fn receive_agent_message(sess: &Arc<Session>, agent_id: AgentId) {
+        match sess.process_next_message(&agent_id).await {
+            Some(message) => {
+                debug!("Agent '{}' received message: {}", agent_id.as_str(), message.id);
+            }
+            None => {
+                debug!("No messages available for agent '{}'", agent_id.as_str());
             }
         }
     }

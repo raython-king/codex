@@ -243,6 +243,12 @@ pub enum Op {
         /// The message to send.
         message: QueuedMessage,
     },
+
+    /// Retrieve the next message for a specific agent.
+    ReceiveMessage {
+        /// Agent to retrieve message for.
+        agent_id: AgentId,
+    },
 }
 
 /// Determines the conditions under which the user is consulted to approve

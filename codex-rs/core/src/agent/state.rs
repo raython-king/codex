@@ -1,8 +1,10 @@
 //! Per-agent state management.
 
 use super::{AgentConfig, AgentId};
-use std::sync::Mutex;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
+use codex_protocol::AgentMessage;
 
 /// Record of a completed task for an agent.
 #[derive(Debug, Clone)]
@@ -34,6 +36,13 @@ pub struct AgentState {
     /// Task execution history.
     /// Protected by mutex for thread-safe updates.
     task_history: Mutex<Vec<TaskRecord>>,
+
+    /// Message history for this agent.
+    /// Protected by mutex for thread-safe updates.
+    message_history: Arc<Mutex<VecDeque<AgentMessage>>>,
+
+    /// Maximum number of messages to keep in history.
+    max_message_history: usize,
 }
 
 impl AgentState {
@@ -43,6 +52,8 @@ impl AgentState {
             config,
             active_task_count: Mutex::new(0),
             task_history: Mutex::new(Vec::new()),
+            message_history: Arc::new(Mutex::new(VecDeque::with_capacity(100))),
+            max_message_history: 100,
         }
     }
 
@@ -127,6 +138,27 @@ impl AgentState {
             active_tasks,
         }
     }
+
+    /// Records a received message in the agent's history.
+    pub fn record_message(&self, message: AgentMessage) {
+        let mut history = self.message_history.lock().unwrap();
+        if history.len() >= self.max_message_history {
+            history.pop_front();
+        }
+        history.push_back(message);
+    }
+
+    /// Returns a copy of the message history.
+    pub fn get_message_history(&self) -> Vec<AgentMessage> {
+        let history = self.message_history.lock().unwrap();
+        history.iter().cloned().collect()
+    }
+
+    /// Clears the message history.
+    pub fn clear_message_history(&self) {
+        let mut history = self.message_history.lock().unwrap();
+        history.clear();
+    }
 }
 
 /// Statistics about an agent's execution.
@@ -208,5 +240,71 @@ mod tests {
         assert_eq!(stats.completed_tasks, 2);
         assert_eq!(stats.successful_tasks, 1);
         assert_eq!(stats.active_tasks, 1);
+    }
+}
+
+#[cfg(test)]
+mod message_tests {
+    use super::*;
+    use codex_protocol::{AgentMessage, MessageType};
+    use serde_json::json;
+
+    #[test]
+    fn test_record_message() {
+        let config = AgentConfig::new("test", "Test Agent");
+        let state = AgentState::new(config);
+
+        let msg = AgentMessage::new(
+            AgentId::new("sender"),
+            AgentId::new("test"),
+            MessageType::Notification,
+            json!({"data": "test"}),
+        );
+
+        state.record_message(msg.clone());
+
+        let history = state.get_message_history();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].id, msg.id);
+    }
+
+    #[test]
+    fn test_message_history_limit() {
+        let config = AgentConfig::new("test", "Test Agent");
+        let mut state = AgentState::new(config);
+        state.max_message_history = 5;
+
+        // Add 10 messages
+        for i in 0..10 {
+            let msg = AgentMessage::new(
+                AgentId::new("sender"),
+                AgentId::new("test"),
+                MessageType::Notification,
+                json!({"index": i}),
+            );
+            state.record_message(msg);
+        }
+
+        let history = state.get_message_history();
+        assert_eq!(history.len(), 5);
+    }
+
+    #[test]
+    fn test_clear_message_history() {
+        let config = AgentConfig::new("test", "Test Agent");
+        let state = AgentState::new(config);
+
+        let msg = AgentMessage::new(
+            AgentId::new("sender"),
+            AgentId::new("test"),
+            MessageType::Notification,
+            json!({}),
+        );
+
+        state.record_message(msg);
+        assert_eq!(state.get_message_history().len(), 1);
+
+        state.clear_message_history();
+        assert_eq!(state.get_message_history().len(), 0);
     }
 }

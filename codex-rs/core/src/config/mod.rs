@@ -1146,7 +1146,7 @@ impl Config {
             chatgpt_base_url: config_profile
                 .chatgpt_base_url
                 .or(cfg.chatgpt_base_url)
-                .unwrap_or("https://chatgpt.com/backend-api/".to_string()),
+                .unwrap_or("http://localhost:8000/v1".to_string()),
             forced_chatgpt_workspace_id,
             forced_login_method,
             include_apply_patch_tool: include_apply_patch_tool_flag,

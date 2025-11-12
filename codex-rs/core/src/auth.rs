@@ -59,7 +59,8 @@ const REFRESH_TOKEN_REUSED_MESSAGE: &str = "Your access token could not be refre
 const REFRESH_TOKEN_INVALIDATED_MESSAGE: &str = "Your access token could not be refreshed because your refresh token was revoked. Please log out and sign in again.";
 const REFRESH_TOKEN_UNKNOWN_MESSAGE: &str =
     "Your access token could not be refreshed. Please log out and sign in again.";
-const REFRESH_TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
+// Changed to local service endpoint, can be overridden with CODEX_REFRESH_TOKEN_URL_OVERRIDE env var
+const REFRESH_TOKEN_URL: &str = "http://localhost:8000/oauth/token";
 pub const REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR: &str = "CODEX_REFRESH_TOKEN_URL_OVERRIDE";
 
 #[derive(Debug, Error)]

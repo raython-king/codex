@@ -8,7 +8,6 @@
 use crate::CodexAuth;
 use crate::default_client::CodexHttpClient;
 use crate::default_client::CodexRequestBuilder;
-use codex_app_server_protocol::AuthMode;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -149,18 +148,10 @@ impl ModelProviderInfo {
             })
     }
 
-    pub(crate) fn get_full_url(&self, auth: &Option<CodexAuth>) -> String {
-        let default_base_url = if matches!(
-            auth,
-            Some(CodexAuth {
-                mode: AuthMode::ChatGPT,
-                ..
-            })
-        ) {
-            "https://chatgpt.com/backend-api/codex"
-        } else {
-            "https://api.openai.com/v1"
-        };
+    pub(crate) fn get_full_url(&self, _auth: &Option<CodexAuth>) -> String {
+        // Changed to use local service by default (OpenAI-compatible format)
+        // Users can override via OPENAI_BASE_URL env var or config.toml
+        let default_base_url = "http://localhost:8000/v1";
         let query_string = self.get_query_string();
         let base_url = self
             .base_url

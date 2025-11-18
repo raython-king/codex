@@ -14,6 +14,8 @@
 //! - `CodeCoordinator`: Coordinator optimized for code development tasks
 //! - `DeepLearningSpecialist`: Specialized agents for deep learning development
 //! - `DeepLearningCoordinator`: Coordinator optimized for deep learning tasks
+//! - `FoundationModelSpecialist`: Specialized agents for CV foundation models and scaling laws
+//! - `FoundationModelCoordinator`: Coordinator optimized for foundation model tasks
 
 pub mod agent_pool;
 pub mod algorithm_coordinator;
@@ -24,6 +26,8 @@ pub mod coordinator_task;
 pub mod deep_learning_coordinator;
 pub mod deep_learning_specialist;
 pub mod event_aggregator;
+pub mod foundation_model_coordinator;
+pub mod foundation_model_specialist;
 pub mod inter_agent_protocol;
 pub mod task_distributor;
 pub mod types;
@@ -45,6 +49,13 @@ pub use deep_learning_specialist::{
     DeepLearningFramework, ModelArchitecture, TrainingStrategy,
 };
 pub use event_aggregator::EventAggregator;
+pub use foundation_model_coordinator::{
+    FoundationModelCoordinator, FoundationModelCoordinatorConfig,
+};
+pub use foundation_model_specialist::{
+    presets as fm_presets, DatasetScale, FoundationModelAgent, FoundationModelArchitecture,
+    FoundationModelCapability, ModelScale, PretrainingStrategy,
+};
 pub use inter_agent_protocol::{InterAgentMessage, InterAgentProtocol};
 pub use task_distributor::{TaskDistributionStrategy, TaskDistributor};
 pub use types::{AgentCapability, AgentId, AgentRole, AgentSpec, DelegatedTask};

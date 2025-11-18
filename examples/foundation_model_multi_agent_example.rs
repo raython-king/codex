@@ -1,10 +1,12 @@
 //! Foundation Model and Scaling Law Multi-Agent System Example
 //!
 //! This example demonstrates the foundation model multi-agent system with:
-//! - CV foundation model experts (CLIP, MAE, SAM, etc.)
+//! - CV foundation model experts (CLIP, MAE, SAM, SAM 2, etc.)
+//! - Latest CV models (Depth Anything V3, DINOv2, Grounding DINO)
 //! - Scaling law analysis and compute-optimal training
 //! - Large-scale pretraining workflows
 //! - Transfer learning and fine-tuning strategies
+//! - Zero-shot depth estimation, video segmentation, open-vocabulary detection
 
 use codex_core::multi_agent::{
     fm_presets, AgentCapability, AgentRole, DatasetScale, FoundationModelAgent,
@@ -64,6 +66,41 @@ fn main() {
     println!("Example 7: Scaling Law Analysis Workflow");
     println!("------------------------------------------");
     scaling_law_workflow();
+
+    println!("\n");
+
+    // Example 8: Latest CV foundation models (SAM 2, Depth Anything V3, Grounding DINO, DINOv2)
+    println!("Example 8: Latest CV Foundation Models");
+    println!("---------------------------------------");
+    latest_cv_models_team();
+
+    println!("\n");
+
+    // Example 9: Depth Anything V3 workflow
+    println!("Example 9: Depth Anything V3 Workflow");
+    println!("---------------------------------------");
+    depth_anything_workflow();
+
+    println!("\n");
+
+    // Example 10: SAM 2 video segmentation workflow
+    println!("Example 10: SAM 2 Video Segmentation");
+    println!("--------------------------------------");
+    sam2_workflow();
+
+    println!("\n");
+
+    // Example 11: Grounding DINO open-vocabulary detection
+    println!("Example 11: Grounding DINO Open-Vocabulary Detection");
+    println!("-----------------------------------------------------");
+    grounding_dino_workflow();
+
+    println!("\n");
+
+    // Example 12: DINOv2 self-supervised learning
+    println!("Example 12: DINOv2 Self-Supervised Learning");
+    println!("---------------------------------------------");
+    dinov2_enhanced_workflow();
 }
 
 /// Example 1: Full foundation model team with all experts
@@ -380,10 +417,257 @@ fn scaling_law_workflow() {
     println!("\n✓ Scaling law analysis workflow completed");
 }
 
-/// Example 8: SAM (Segment Anything) workflow
+/// Example 8: Latest CV foundation models team
+fn latest_cv_models_team() {
+    let team = vec![
+        fm_presets::depth_anything_expert(),
+        fm_presets::sam2_expert(),
+        fm_presets::grounding_dino_expert(),
+        fm_presets::dinov2_expert(),
+    ];
+
+    println!("Latest CV Foundation Models Team:");
+    for expert in &team {
+        println!("  • {} - {:?}", expert.spec.id.0, expert.spec.role);
+        if !expert.architectures.is_empty() {
+            println!(
+                "    Architectures: {}",
+                expert
+                    .architectures
+                    .iter()
+                    .map(|a| format!("{}", a))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+        if !expert.fm_capabilities.is_empty() {
+            let caps: Vec<_> = expert.fm_capabilities.iter().take(3).collect();
+            println!(
+                "    Capabilities: {}{}",
+                caps.iter()
+                    .map(|c| format!("{}", c))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                if expert.fm_capabilities.len() > 3 {
+                    format!(" (+{})", expert.fm_capabilities.len() - 3)
+                } else {
+                    String::new()
+                }
+            );
+        }
+        if !expert.libraries.is_empty() {
+            println!("    Libraries: {}", expert.libraries.join(", "));
+        }
+    }
+
+    let config = FoundationModelCoordinatorConfig {
+        fm_experts: team,
+        distribution_strategy: TaskDistributionStrategy::BestMatch,
+        auto_infer: true,
+        verbose: true,
+        ..Default::default()
+    };
+
+    let _coordinator = FoundationModelCoordinator::new(config);
+    println!("\n✓ Latest CV models team coordinator created");
+}
+
+/// Example 9: Depth Anything V3 workflow
+fn depth_anything_workflow() {
+    println!("Simulating Depth Anything V3 Development Workflow:");
+    println!("\nPhase 1: Zero-Shot Depth Estimation Architecture");
+    println!("  Assigned to: Depth Anything Expert");
+    println!("  Tasks:");
+    println!("    - Design encoder-decoder architecture with ViT backbone");
+    println!("    - Implement relative depth to metric depth conversion");
+    println!("    - Support both indoor and outdoor scenes");
+    println!("    - Enable high-resolution depth prediction");
+
+    println!("\nPhase 2: Large-Scale Pretraining");
+    println!("  Assigned to: Depth Anything Expert, Pretraining Expert");
+    println!("  Tasks:");
+    println!("    - Collect diverse depth datasets (indoor, outdoor, synthetic)");
+    println!("    - Pretrain on mixed datasets for robustness");
+    println!("    - Use self-supervised and supervised objectives");
+    println!("    - Train models at multiple scales (Small, Base, Large)");
+
+    println!("\nPhase 3: Zero-Shot Transfer");
+    println!("  Assigned to: Depth Anything Expert, Evaluation Expert");
+    println!("  Tasks:");
+    println!("    - Test on NYU Depth V2 (indoor)");
+    println!("    - Test on KITTI (outdoor/driving)");
+    println!("    - Test on ETH3D (high-resolution)");
+    println!("    - Evaluate on unseen domains");
+
+    println!("\nPhase 4: Metric Depth Estimation");
+    println!("  Assigned to: Depth Anything Expert");
+    println!("  Tasks:");
+    println!("    - Fine-tune for metric depth prediction");
+    println!("    - Add scale-invariant loss");
+    println!("    - Calibrate depth range per scene type");
+    println!("    - Enable real-world measurements");
+
+    println!("\nPhase 5: Deployment");
+    println!("  Assigned to: Depth Anything Expert");
+    println!("  Tasks:");
+    println!("    - Export to ONNX for production");
+    println!("    - Optimize for mobile/edge devices");
+    println!("    - Create AR/VR applications");
+    println!("    - Integrate with 3D reconstruction pipelines");
+
+    println!("\n✓ Depth Anything V3 workflow completed");
+}
+
+/// Example 10: SAM 2 video segmentation workflow
+fn sam2_workflow() {
+    println!("Simulating SAM 2 Development Workflow:");
+    println!("\nPhase 1: Unified Image + Video Architecture");
+    println!("  Assigned to: SAM 2 Expert");
+    println!("  Tasks:");
+    println!("    - Extend SAM architecture for temporal modeling");
+    println!("    - Add memory attention for tracking across frames");
+    println!("    - Design streaming architecture for video");
+    println!("    - Support both image and video prompts");
+
+    println!("\nPhase 2: Video Data Engine");
+    println!("  Assigned to: SAM 2 Expert, Data Curation Expert");
+    println!("  Tasks:");
+    println!("    - Collect diverse video datasets (SA-V dataset)");
+    println!("    - Interactive annotation tool for video masks");
+    println!("    - Propagate masks across frames");
+    println!("    - Handle occlusions and reappearances");
+
+    println!("\nPhase 3: Promptable Video Segmentation");
+    println!("  Assigned to: SAM 2 Expert");
+    println!("  Tasks:");
+    println!("    - Click-based video object selection");
+    println!("    - Bounding box prompts for tracking");
+    println!("    - Mask prompts for refinement");
+    println!("    - Support multi-object tracking");
+
+    println!("\nPhase 4: Temporal Consistency");
+    println!("  Assigned to: SAM 2 Expert");
+    println!("  Tasks:");
+    println!("    - Implement memory bank for object features");
+    println!("    - Cross-frame attention mechanisms");
+    println!("    - Handle motion blur and fast movement");
+    println!("    - Ensure smooth mask transitions");
+
+    println!("\nPhase 5: Real-Time Video Applications");
+    println!("  Assigned to: SAM 2 Expert");
+    println!("  Tasks:");
+    println!("    - Optimize for real-time processing");
+    println!("    - Video editing and effects");
+    println!("    - Autonomous driving perception");
+    println!("    - Medical video analysis");
+
+    println!("\n✓ SAM 2 workflow completed");
+}
+
+/// Example 11: Grounding DINO workflow
+fn grounding_dino_workflow() {
+    println!("Simulating Grounding DINO Development Workflow:");
+    println!("\nPhase 1: Open-Vocabulary Detection Architecture");
+    println!("  Assigned to: Grounding DINO Expert");
+    println!("  Tasks:");
+    println!("    - Combine DINO detector with language grounding");
+    println!("    - Design cross-modality feature fusion");
+    println!("    - Implement text-to-vision attention");
+    println!("    - Support arbitrary text queries");
+
+    println!("\nPhase 2: Vision-Language Pretraining");
+    println!("  Assigned to: Grounding DINO Expert, CLIP Expert");
+    println!("  Tasks:");
+    println!("    - Pretrain on image-text pairs");
+    println!("    - Align visual regions with text phrases");
+    println!("    - Learn open-vocabulary representations");
+    println!("    - Train grounding head for localization");
+
+    println!("\nPhase 3: Zero-Shot Object Detection");
+    println!("  Assigned to: Grounding DINO Expert, Evaluation Expert");
+    println!("  Tasks:");
+    println!("    - Detect novel objects via text descriptions");
+    println!("    - Support complex textual queries");
+    println!("    - Handle multiple objects per image");
+    println!("    - Benchmark on COCO and LVIS");
+
+    println!("\nPhase 4: Referring Expression Comprehension");
+    println!("  Assigned to: Grounding DINO Expert");
+    println!("  Tasks:");
+    println!("    - Locate objects from natural language");
+    println!("    - Handle spatial relationships (left of, behind, etc.)");
+    println!("    - Resolve ambiguous references");
+    println!("    - Multi-step reasoning for complex queries");
+
+    println!("\nPhase 5: Applications");
+    println!("  Assigned to: Grounding DINO Expert");
+    println!("  Tasks:");
+    println!("    - Visual question answering");
+    println!("    - Image editing with text prompts");
+    println!("    - Robotics manipulation (find and grasp)");
+    println!("    - Integrate with SAM for open-vocabulary segmentation");
+
+    println!("\n✓ Grounding DINO workflow completed");
+}
+
+/// Example 12: DINOv2 enhanced workflow
+fn dinov2_enhanced_workflow() {
+    println!("Simulating DINOv2 Development Workflow:");
+    println!("\nPhase 1: Self-Supervised Pretraining");
+    println!("  Assigned to: DINOv2 Expert, Pretraining Expert");
+    println!("  Tasks:");
+    println!("    - Self-distillation with no labels (iBOT + DINO)");
+    println!("    - Student-teacher architecture with EMA");
+    println!("    - Multi-crop augmentation strategy");
+    println!("    - Train on 142M curated images (LVD-142M)");
+
+    println!("\nPhase 2: Data Curation at Scale");
+    println!("  Assigned to: Data Curation Expert, DINOv2 Expert");
+    println!("  Tasks:");
+    println!("    - Automatic data curation pipeline");
+    println!("    - Image deduplication and clustering");
+    println!("    - Remove low-quality and duplicates");
+    println!("    - Balance dataset across visual concepts");
+
+    println!("\nPhase 3: Model Scale Variants");
+    println!("  Assigned to: DINOv2 Expert, Scaling Law Expert");
+    println!("  Tasks:");
+    println!("    - Train DINOv2-Small (21M params)");
+    println!("    - Train DINOv2-Base (86M params)");
+    println!("    - Train DINOv2-Large (300M params)");
+    println!("    - Train DINOv2-Gigantic (1.1B params)");
+
+    println!("\nPhase 4: Dense Prediction Features");
+    println!("  Assigned to: DINOv2 Expert, Evaluation Expert");
+    println!("  Tasks:");
+    println!("    - Evaluate on semantic segmentation");
+    println!("    - Test monocular depth estimation");
+    println!("    - Instance segmentation performance");
+    println!("    - Strong linear probing results");
+
+    println!("\nPhase 5: Downstream Transfer");
+    println!("  Assigned to: DINOv2 Expert, Transfer Learning Expert");
+    println!("  Tasks:");
+    println!("    - Image classification (frozen features)");
+    println!("    - Object detection (FPN heads)");
+    println!("    - Video understanding tasks");
+    println!("    - Cross-domain transfer learning");
+
+    println!("\nPhase 6: Foundation for Other Models");
+    println!("  Assigned to: DINOv2 Expert");
+    println!("  Tasks:");
+    println!("    - Use as backbone for Depth Anything");
+    println!("    - Integrate with SAM for segmentation");
+    println!("    - Feature extraction for retrieval");
+    println!("    - Vision-language model initialization");
+
+    println!("\n✓ DINOv2 workflow completed");
+}
+
+/// Legacy example: SAM (Segment Anything) workflow (replaced by SAM 2)
 #[allow(dead_code)]
-fn sam_workflow() {
-    println!("Simulating SAM Development Workflow:");
+fn sam_legacy_workflow() {
+    println!("Simulating SAM v1 Development Workflow:");
     println!("\nPhase 1: Architecture Design");
     println!("  - Image encoder (ViT-H)");
     println!("  - Prompt encoder (sparse + dense)");
@@ -400,12 +684,12 @@ fn sam_workflow() {
     println!("  - Multiple mask output");
     println!("  - Ambiguity handling");
 
-    println!("\n✓ SAM workflow demonstrated");
+    println!("\n✓ SAM v1 workflow demonstrated (see SAM 2 for latest)");
 }
 
-/// Example 9: DINOv2 self-supervised learning
+/// Legacy example: DINOv2 self-supervised learning (simplified version)
 #[allow(dead_code)]
-fn dinov2_workflow() {
+fn dinov2_legacy_workflow() {
     println!("Simulating DINOv2 Pretraining Workflow:");
     println!("\nPhase 1: Self-Supervised Pretraining");
     println!("  - Self-distillation with no labels");
@@ -419,7 +703,7 @@ fn dinov2_workflow() {
     println!("  - Depth estimation");
     println!("  - Strong linear probing");
 
-    println!("\n✓ DINOv2 workflow demonstrated");
+    println!("\n✓ DINOv2 workflow demonstrated (see enhanced version)");
 }
 
 /// Example 10: Model scale comparison

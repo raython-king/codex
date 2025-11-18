@@ -17,7 +17,9 @@ pub enum FoundationModelArchitecture {
     ALIGN,
     Florence,
     SAM,              // Segment Anything Model
+    SAM2,             // Segment Anything Model 2 (video + image)
     DINOv2,
+    GroundingDINO,    // Grounding DINO for open-vocabulary detection
     MAE,              // Masked Autoencoder
     BEiT,
     SimCLR,
@@ -26,9 +28,17 @@ pub enum FoundationModelArchitecture {
     DEIT,
     SwinTransformer,
 
+    // Depth Estimation Models
+    DepthAnything,    // Depth Anything V1
+    DepthAnythingV2,  // Depth Anything V2
+    DepthAnythingV3,  // Depth Anything V3 (latest)
+    ZoeDepth,
+    MiDaS,
+
     // Multimodal Foundation Models
     Flamingo,
     BLIP,
+    BLIP2,
     GPT4Vision,
     LLaVA,
     Kosmos,
@@ -156,6 +166,24 @@ pub enum FoundationModelCapability {
     ConceptDiscovery,
     BiasDetection,
 
+    // Dense Prediction
+    MonocularDepthEstimation,
+    MetricDepthEstimation,
+    RelativeDepthEstimation,
+    ZeroShotDepthEstimation,
+
+    // Open-Vocabulary Understanding
+    OpenVocabularyDetection,
+    OpenVocabularySegmentation,
+    GroundingCapability,
+    ReferringSegmentation,
+    TextGroundedUnderstanding,
+
+    // Video Understanding
+    VideoSegmentation,
+    VideoObjectTracking,
+    TemporalConsistency,
+
     Custom(String),
 }
 
@@ -203,6 +231,18 @@ impl fmt::Display for FoundationModelCapability {
             FoundationModelCapability::FeatureVisualization => write!(f, "feature-visualization"),
             FoundationModelCapability::ConceptDiscovery => write!(f, "concept-discovery"),
             FoundationModelCapability::BiasDetection => write!(f, "bias-detection"),
+            FoundationModelCapability::MonocularDepthEstimation => write!(f, "monocular-depth-estimation"),
+            FoundationModelCapability::MetricDepthEstimation => write!(f, "metric-depth-estimation"),
+            FoundationModelCapability::RelativeDepthEstimation => write!(f, "relative-depth-estimation"),
+            FoundationModelCapability::ZeroShotDepthEstimation => write!(f, "zero-shot-depth-estimation"),
+            FoundationModelCapability::OpenVocabularyDetection => write!(f, "open-vocabulary-detection"),
+            FoundationModelCapability::OpenVocabularySegmentation => write!(f, "open-vocabulary-segmentation"),
+            FoundationModelCapability::GroundingCapability => write!(f, "grounding-capability"),
+            FoundationModelCapability::ReferringSegmentation => write!(f, "referring-segmentation"),
+            FoundationModelCapability::TextGroundedUnderstanding => write!(f, "text-grounded-understanding"),
+            FoundationModelCapability::VideoSegmentation => write!(f, "video-segmentation"),
+            FoundationModelCapability::VideoObjectTracking => write!(f, "video-object-tracking"),
+            FoundationModelCapability::TemporalConsistency => write!(f, "temporal-consistency"),
             FoundationModelCapability::Custom(name) => write!(f, "custom:{}", name),
         }
     }
@@ -640,6 +680,122 @@ pub mod presets {
         .with_priority(9)
     }
 
+    /// Depth Anything V3 expert
+    pub fn depth_anything_expert() -> FoundationModelAgent {
+        FoundationModelAgent::new(
+            "depth-anything-expert",
+            AgentRole::Specialist {
+                domain: "depth-estimation".to_string(),
+            },
+        )
+        .with_architectures(vec![
+            FoundationModelArchitecture::DepthAnythingV3,
+            FoundationModelArchitecture::DepthAnythingV2,
+            FoundationModelArchitecture::DepthAnything,
+        ])
+        .with_fm_capabilities(vec![
+            FoundationModelCapability::MonocularDepthEstimation,
+            FoundationModelCapability::MetricDepthEstimation,
+            FoundationModelCapability::RelativeDepthEstimation,
+            FoundationModelCapability::ZeroShotDepthEstimation,
+            FoundationModelCapability::ZeroShotTransfer,
+        ])
+        .with_pretraining_strategy(PretrainingStrategy::DenoisingAutoencoder)
+        .with_model_scale(ModelScale::Base)
+        .with_model_scale(ModelScale::Large)
+        .with_dataset_scale(DatasetScale::WebScale)
+        .with_capability(AgentCapability::CodeGeneration)
+        .with_library("depth-anything")
+        .with_library("transformers")
+        .with_library("torch")
+        .with_instructions("Depth Anything foundation model expert for zero-shot monocular depth estimation")
+        .with_priority(9)
+    }
+
+    /// SAM 2 expert (video + image segmentation)
+    pub fn sam2_expert() -> FoundationModelAgent {
+        FoundationModelAgent::new(
+            "sam2-expert",
+            AgentRole::Specialist {
+                domain: "video-segmentation".to_string(),
+            },
+        )
+        .with_architecture(FoundationModelArchitecture::SAM2)
+        .with_fm_capabilities(vec![
+            FoundationModelCapability::VideoSegmentation,
+            FoundationModelCapability::VideoObjectTracking,
+            FoundationModelCapability::TemporalConsistency,
+            FoundationModelCapability::ZeroShotTransfer,
+            FoundationModelCapability::PromptTuning,
+        ])
+        .with_model_scale(ModelScale::Large)
+        .with_model_scale(ModelScale::XLarge)
+        .with_dataset_scale(DatasetScale::WebScale)
+        .with_capability(AgentCapability::CodeGeneration)
+        .with_library("SAM2")
+        .with_library("segment-anything-2")
+        .with_library("torch")
+        .with_instructions("SAM 2 expert for promptable video and image segmentation with temporal consistency")
+        .with_priority(10)
+    }
+
+    /// Grounding DINO expert
+    pub fn grounding_dino_expert() -> FoundationModelAgent {
+        FoundationModelAgent::new(
+            "grounding-dino-expert",
+            AgentRole::Specialist {
+                domain: "open-vocabulary-detection".to_string(),
+            },
+        )
+        .with_architecture(FoundationModelArchitecture::GroundingDINO)
+        .with_fm_capabilities(vec![
+            FoundationModelCapability::OpenVocabularyDetection,
+            FoundationModelCapability::GroundingCapability,
+            FoundationModelCapability::TextGroundedUnderstanding,
+            FoundationModelCapability::ZeroShotTransfer,
+        ])
+        .with_pretraining_strategy(PretrainingStrategy::VisionLanguageAlignment)
+        .with_model_scale(ModelScale::Base)
+        .with_model_scale(ModelScale::Large)
+        .with_dataset_scale(DatasetScale::Large)
+        .with_capability(AgentCapability::CodeGeneration)
+        .with_library("groundingdino")
+        .with_library("transformers")
+        .with_library("supervision")
+        .with_instructions("Grounding DINO expert for open-vocabulary object detection with text grounding")
+        .with_priority(9)
+    }
+
+    /// DINOv2 enhanced expert
+    pub fn dinov2_expert() -> FoundationModelAgent {
+        FoundationModelAgent::new(
+            "dinov2-expert",
+            AgentRole::Specialist {
+                domain: "self-distillation".to_string(),
+            },
+        )
+        .with_architecture(FoundationModelArchitecture::DINOv2)
+        .with_fm_capabilities(vec![
+            FoundationModelCapability::SelfSupervisedPretraining,
+            FoundationModelCapability::VisionTransformerDesign,
+            FoundationModelCapability::LinearProbing,
+            FoundationModelCapability::ZeroShotTransfer,
+            FoundationModelCapability::FeatureVisualization,
+        ])
+        .with_pretraining_strategy(PretrainingStrategy::ContrastiveLearning)
+        .with_model_scale(ModelScale::Small)
+        .with_model_scale(ModelScale::Base)
+        .with_model_scale(ModelScale::Large)
+        .with_model_scale(ModelScale::Gigantic)
+        .with_dataset_scale(DatasetScale::WebScale)
+        .with_capability(AgentCapability::CodeGeneration)
+        .with_library("dinov2")
+        .with_library("torch")
+        .with_library("timm")
+        .with_instructions("DINOv2 expert for self-distillation with no labels and strong dense prediction features")
+        .with_priority(10)
+    }
+
     /// Get all foundation model experts
     pub fn all_fm_experts() -> Vec<FoundationModelAgent> {
         vec![
@@ -650,9 +806,13 @@ pub mod presets {
             data_curation_expert(),
             transfer_learning_expert(),
             sam_expert(),
+            sam2_expert(),
             multimodal_expert(),
             evaluation_expert(),
             vit_expert(),
+            depth_anything_expert(),
+            grounding_dino_expert(),
+            dinov2_expert(),
         ]
     }
 }

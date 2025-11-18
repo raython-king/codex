@@ -126,8 +126,35 @@ impl FoundationModelCoordinator {
         }
 
         // Segmentation
-        if desc_lower.contains("sam") || desc_lower.contains("segment anything") {
+        if desc_lower.contains("sam 2") || desc_lower.contains("sam2") {
+            architectures.insert(FoundationModelArchitecture::SAM2);
+        } else if desc_lower.contains("sam") || desc_lower.contains("segment anything") {
             architectures.insert(FoundationModelArchitecture::SAM);
+        }
+
+        // Depth Estimation
+        if desc_lower.contains("depth anything v3") || desc_lower.contains("depth-anything-v3") {
+            architectures.insert(FoundationModelArchitecture::DepthAnythingV3);
+        } else if desc_lower.contains("depth anything v2") || desc_lower.contains("depth-anything-v2") {
+            architectures.insert(FoundationModelArchitecture::DepthAnythingV2);
+        } else if desc_lower.contains("depth anything") || desc_lower.contains("depth-anything") {
+            architectures.insert(FoundationModelArchitecture::DepthAnything);
+        }
+        if desc_lower.contains("zoedepth") {
+            architectures.insert(FoundationModelArchitecture::ZoeDepth);
+        }
+        if desc_lower.contains("midas") {
+            architectures.insert(FoundationModelArchitecture::MiDaS);
+        }
+
+        // Open-Vocabulary Detection
+        if desc_lower.contains("grounding dino") || desc_lower.contains("groundingdino") {
+            architectures.insert(FoundationModelArchitecture::GroundingDINO);
+        }
+
+        // Enhanced DINOv2 detection
+        if desc_lower.contains("dinov2") || desc_lower.contains("dino v2") {
+            architectures.insert(FoundationModelArchitecture::DINOv2);
         }
 
         // Multimodal
@@ -268,6 +295,44 @@ impl FoundationModelCoordinator {
         }
         if desc_lower.contains("robust") {
             capabilities.insert(FoundationModelCapability::RobustnessEvaluation);
+        }
+
+        // Depth Estimation
+        if desc_lower.contains("depth estimation") || desc_lower.contains("depth-estimation") {
+            capabilities.insert(FoundationModelCapability::MonocularDepthEstimation);
+        }
+        if desc_lower.contains("metric depth") {
+            capabilities.insert(FoundationModelCapability::MetricDepthEstimation);
+        }
+        if desc_lower.contains("relative depth") {
+            capabilities.insert(FoundationModelCapability::RelativeDepthEstimation);
+        }
+        if desc_lower.contains("zero-shot depth") || desc_lower.contains("zero shot depth") {
+            capabilities.insert(FoundationModelCapability::ZeroShotDepthEstimation);
+        }
+
+        // Open-Vocabulary
+        if desc_lower.contains("open-vocabulary") || desc_lower.contains("open vocabulary") {
+            capabilities.insert(FoundationModelCapability::OpenVocabularyDetection);
+            capabilities.insert(FoundationModelCapability::OpenVocabularySegmentation);
+        }
+        if desc_lower.contains("grounding") || desc_lower.contains("text-grounded") {
+            capabilities.insert(FoundationModelCapability::GroundingCapability);
+            capabilities.insert(FoundationModelCapability::TextGroundedUnderstanding);
+        }
+        if desc_lower.contains("referring") {
+            capabilities.insert(FoundationModelCapability::ReferringSegmentation);
+        }
+
+        // Video Understanding
+        if desc_lower.contains("video segment") {
+            capabilities.insert(FoundationModelCapability::VideoSegmentation);
+        }
+        if desc_lower.contains("video track") || desc_lower.contains("object track") {
+            capabilities.insert(FoundationModelCapability::VideoObjectTracking);
+        }
+        if desc_lower.contains("temporal") {
+            capabilities.insert(FoundationModelCapability::TemporalConsistency);
         }
 
         capabilities

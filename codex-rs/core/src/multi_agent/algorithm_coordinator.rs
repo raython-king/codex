@@ -5,7 +5,7 @@
 
 use super::agent_pool::{AgentPool, AgentPoolConfig};
 use super::algorithm_specialist::{AlgorithmAgent, AlgorithmCapability};
-use super::task_distributor::{TaskDistributor, TaskDistributionStrategy};
+use super::task_distributor::{TaskDistributionStrategy, TaskDistributor};
 use super::types::{AgentCapability, DelegatedTask};
 use crate::codex::TurnContext;
 use crate::error::CodexErr;
@@ -304,7 +304,7 @@ impl AlgorithmCoordinator {
         algo_caps: &HashSet<AlgorithmCapability>,
     ) -> String {
         let mut report = String::from("Algorithm Engineering Task Plan\n");
-        report.push_str("=" .repeat(50).as_str());
+        report.push_str("=".repeat(50).as_str());
         report.push('\n');
 
         // Algorithm capabilities detected

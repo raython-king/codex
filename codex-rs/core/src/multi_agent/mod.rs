@@ -12,6 +12,8 @@
 //! - `AlgorithmCoordinator`: Coordinator optimized for algorithm tasks
 //! - `CodeSpecialist`: Specialized agents for software development
 //! - `CodeCoordinator`: Coordinator optimized for code development tasks
+//! - `DeepLearningSpecialist`: Specialized agents for deep learning development
+//! - `DeepLearningCoordinator`: Coordinator optimized for deep learning tasks
 
 pub mod agent_pool;
 pub mod algorithm_coordinator;
@@ -19,6 +21,8 @@ pub mod algorithm_specialist;
 pub mod code_coordinator;
 pub mod code_specialist;
 pub mod coordinator_task;
+pub mod deep_learning_coordinator;
+pub mod deep_learning_specialist;
 pub mod event_aggregator;
 pub mod inter_agent_protocol;
 pub mod task_distributor;
@@ -27,14 +31,19 @@ pub mod types;
 pub use agent_pool::{AgentPool, AgentPoolConfig};
 pub use algorithm_coordinator::{AlgorithmCoordinator, AlgorithmCoordinatorConfig};
 pub use algorithm_specialist::{
-    AlgorithmAgent, AlgorithmCapability, PerceptionDomain, presets as algorithm_presets,
+    presets as algorithm_presets, AlgorithmAgent, AlgorithmCapability, PerceptionDomain,
 };
 pub use code_coordinator::{CodeCoordinator, CodeCoordinatorConfig};
 pub use code_specialist::{
-    DevCapability, DevelopmentAgent, DevelopmentDomain, ProgrammingLanguage,
-    presets as code_presets,
+    presets as code_presets, DevCapability, DevelopmentAgent, DevelopmentDomain,
+    ProgrammingLanguage,
 };
 pub use coordinator_task::CoordinatorTask;
+pub use deep_learning_coordinator::{DeepLearningCoordinator, DeepLearningCoordinatorConfig};
+pub use deep_learning_specialist::{
+    presets as dl_presets, ApplicationDomain, DeepLearningAgent, DeepLearningCapability,
+    DeepLearningFramework, ModelArchitecture, TrainingStrategy,
+};
 pub use event_aggregator::EventAggregator;
 pub use inter_agent_protocol::{InterAgentMessage, InterAgentProtocol};
 pub use task_distributor::{TaskDistributionStrategy, TaskDistributor};
